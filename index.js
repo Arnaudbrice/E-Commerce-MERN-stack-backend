@@ -2,7 +2,7 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 
-import mongoose from "mongoose";
+import "./db/index.js"; //!connect to mongodb database
 
 /***********************************************************/
 import path from "path";
@@ -57,12 +57,15 @@ app.use(cookieParser());
 // Serve static files from the public folder
 app.use(express.static(path.join(__dirname, "public")));
 
-// connect to mongodb database
-mongoose.connect("mongodb://localhost:27017/databaseName");
+// Health check endpoint
+app.get("/health", async (req, res) => {
+  res.json({ msg: "Running" });
+});
+
 app.get("/", (req, res) => {
   res.send("Hello World!");
 });
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
-  console.log(`Server is listening on port port!`);
+  console.log(`Server is listening on port ${port}!`);
 });
