@@ -4,9 +4,14 @@ import cors from "cors";
 
 import "./db/index.js"; //!connect to mongodb database
 
+import authRouter from "./routers/auth.router.js";
+
+import authenticate from "./middlewares/authenticate.js";
+
 /***********************************************************/
 import path from "path";
 import { fileURLToPath } from "url";
+import errorHandler from "./middlewares/errorHandler.js";
 
 //! return a cross-platform valid absolute path string
 const __filename = fileURLToPath(import.meta.url);
@@ -59,12 +64,22 @@ app.use(express.static(path.join(__dirname, "public")));
 
 // Health check endpoint
 app.get("/health", async (req, res) => {
-  res.json({ msg: "Running" });
+  res.json({ message: "Running" });
 });
+
+//****** Routes specific middleware setting ******
+
+// public routes
+app.use("/auth", authRouter);
+
+// protected routes
+app.use(authenticate);
 
 app.get("/", (req, res) => {
   res.send("Hello World!");
 });
+
+app.use(errorHandler);
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
   console.log(`Server is listening on port ${port}!`);
