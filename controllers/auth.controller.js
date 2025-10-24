@@ -21,13 +21,20 @@ export const register = async (req, res) => {
   const hashedPassword = await bcrypt.hash(password, salt);
 
   // create a new user
-  const newUser = await User.create({
+  const user = await User.create({
     email: email,
     password: hashedPassword,
-  }).toObject();
+  });
+
+  console.log("user", user);
+
+  // convert the user document to an object to be able to delete the password property
+  const newUser = user.toObject();
 
   // delete the password from the user object before sending the response back to the client
   delete newUser.password;
+
+  console.log("newUser", newUser);
 
   res.json(newUser);
 };
@@ -37,7 +44,7 @@ export const register = async (req, res) => {
 export const login = async (req, res) => {
   const { email, password } = req.body;
 
-  const user = await User.findOne({ email }).select("+password").toObject();
+  const user = await User.findOne({ email }).select("+password");
 
   if (!user) {
     throw new Error("Invalid Credentials", { cause: 400 });
@@ -57,12 +64,15 @@ export const login = async (req, res) => {
   };
 
   // generate a JWT token based on the defined payload
-  const token = await json.sign(payload, process.env.JWT_SECRET, {
+  const token = await jwt.sign(payload, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_REXPIRES_IN + "d",
   });
 
+  // convert the user document to an object to be able to delete the password property
+  const userDoc = user.toObject();
+
   // delete the password from the user object before sending the response back to the client
-  delete user.password;
+  delete userDoc.password;
 
   //store the token in a cookie and set this cookie in the response header
   res.cookie("token", token, {
@@ -72,7 +82,7 @@ export const login = async (req, res) => {
   });
 
   // send the response back to the client including the cookie set in the response header
-  res.json(user);
+  res.json(userDoc);
 };
 
 //********** POST /auth/logout **********
