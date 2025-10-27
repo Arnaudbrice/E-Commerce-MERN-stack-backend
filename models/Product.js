@@ -7,8 +7,11 @@ const productSchema = new mongoose.Schema(
       required: true,
     },
     price: {
-      type: mongoose.Schema.Types.Decimal128, // ( Decimal128 supports up to 34 decimal digits of precision.)
+      type: mongoose.Schema.Types.Decimal128,
       required: true,
+      set: (value) =>
+        mongoose.Types.Decimal128.fromString(parseFloat(value).toFixed(2)), // Convert to Decimal128
+      get: (value) => parseFloat(value.toString()), // Convert Decimal128 to number
     },
     description: {
       type: String,
@@ -50,7 +53,13 @@ const productSchema = new mongoose.Schema(
       required: true,
     },
   },
-  { timestamps: true } // adds createdAt & updatedAt
+  {
+    timestamps: true,
+    toJSON: { getters: true }, // Enable getters when converting to JSON
+    toObject: { getters: true }, // Enable getters when converting to Object
+  }
+
+  // adds createdAt & updatedAt
 );
 
 const Product = mongoose.model("Product", productSchema);
