@@ -7,7 +7,7 @@ import "./db/index.js"; //!connect to mongodb database
 import authRouter from "./routers/auth.router.js";
 
 import authenticate from "./middlewares/authenticate.js";
-
+import userRouter from "./routers/user.router.js";
 /***********************************************************/
 import path from "path";
 import { fileURLToPath } from "url";
@@ -75,9 +75,7 @@ app.use("/auth", authRouter);
 // protected routes
 app.use(authenticate);
 
-app.get("/", (req, res) => {
-  res.send("Hello World!");
-});
+app.use("/user", userRouter);
 
 app.use(errorHandler);
 const port = process.env.PORT || 3000;
