@@ -75,7 +75,7 @@ app.use("/auth", authRouter);
 // protected routes
 app.use(authenticate);
 
-app.use("/user", userRouter);
+app.use("/users", userRouter);
 
 app.use(errorHandler);
 const port = process.env.PORT || 3000;

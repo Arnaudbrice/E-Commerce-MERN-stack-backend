@@ -13,13 +13,16 @@ export const productSchema = z.object({
     .string()
     .min(20, "Description Should Be At Least 20 Characters"),
   category: z.enum([
-    "electronics",
-    "clothing",
-    "books",
-    "home",
-    "beauty",
-    "sports",
-    "other",
+    "Electronics",
+    "Jewelry",
+    "Men's Clothing",
+    "Women's Clothing",
+    "Kids's Clothing",
+    "Books",
+    "Home",
+    "Beauty",
+    "Sports",
+    "Other",
   ]),
   image: z.string().optional(), // Optional because I am handling file uploads (cloudinary and multer will handle validation and storage)
   stock: z.coerce.number().min(0, "Stock Should Be At Least 0"), //formData sent client side turns number to string automatically, so we need to coerce it to number
