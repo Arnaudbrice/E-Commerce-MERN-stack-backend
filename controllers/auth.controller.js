@@ -64,7 +64,7 @@ export const login = async (req, res) => {
   };
 
   // generate a JWT token based on the defined payload
-  const token = await jwt.sign(payload, process.env.JWT_SECRET, {
+  const token = jwt.sign(payload, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_REXPIRES_IN + "d",
   });
 
