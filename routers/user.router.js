@@ -5,6 +5,7 @@ import {
   deleteProduct,
   getCartProducts,
   getProductCategories,
+  getProductFromCart,
   getProducts,
   removeProductFromCart,
   updateProduct,
@@ -16,13 +17,13 @@ import { productSchema } from "../schemas/product.schema.js";
 const userRouter = express.Router();
 
 //********** products **********
-userRouter.route("/products").post(
+userRouter.route("/products").get(getProducts).post(
   uploadFile,
   validateSchema(productSchema),
 
   createProduct
 );
-userRouter.get("/products", getProducts);
+// userRouter.get("/products", getProducts);
 
 userRouter.post("/products/:id", updateProduct);
 userRouter.delete("/products/:id", deleteProduct);
@@ -33,6 +34,9 @@ userRouter.get("/products/categories", getProductCategories);
 
 //********** cart **********
 userRouter.route("/cart").get(getCartProducts).post(addProductToCart);
-userRouter.delete("/cart/products/:id", removeProductFromCart);
+userRouter
+  .route("/cart/products/:id")
+  .get(getProductFromCart)
+  .delete(removeProductFromCart);
 
 export default userRouter;

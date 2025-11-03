@@ -4,6 +4,8 @@ import jwt from "jsonwebtoken";
 import Product from "../models/Product.js";
 import Cart from "../models/Cart.js";
 
+import chalk from "chalk";
+
 //********** POST /users/products **********
 export const createProduct = async (req, res) => {
   const userId = req.user._id;
@@ -74,6 +76,7 @@ export const deleteProduct = async (req, res) => {
 //********** GET /users/products/categories **********
 export const getProductCategories = async (req, res) => {
   const categories = await Product.schema.path("category").enumValues;
+
   res.json(categories);
 };
 
@@ -96,6 +99,34 @@ export const getCartProducts = async (req, res) => {
     res.json([]);
   }
   res.json(cart);
+};
+
+//********** GET /users/cart/products/:id **********
+export const getProductFromCart = async (req, res) => {
+  const userId = req.user._id;
+  const productId = req.params.id;
+  console.log("productId here again", productId);
+
+  const cart = await Cart.findOne({ userId: userId }).populate(
+    "products.productId"
+  ); //Populating productId for each item within the products array
+
+  if (!cart) {
+    // throw new Error("Cart not found", { cause: 404 });
+    res.json([]);
+  }
+
+  const product = cart.products.find(
+    (item) => item.productId._id.toString() === productId.toString()
+  );
+
+  if (!product) {
+    throw new Error("Product not found", { cause: 404 });
+  }
+
+  console.log("founded product here", product);
+
+  res.json(product);
 };
 
 //********** POST /users/cart **********
@@ -145,7 +176,7 @@ export const addProductToCart = async (req, res) => {
 
   await cart.save();
 
-  //populate product details before sending response
+  //!populate product details before sending response(populate is always called on the mongoose document)
   const populatedCart = await Cart.findOne({ userId: userId }).populate(
     "products.productId"
   );
@@ -171,5 +202,16 @@ export const removeProductFromCart = async (req, res) => {
     throw new Error("Product cannot be removed from cart", { cause: 404 });
   }
 
-  res.status(204).json(updatedCart);
+  console.log(
+    chalk.yellow("Product removed from cart successfully!"),
+    updatedCart
+  );
+  // console.log("updatedCart", updatedCart);
+
+  // Populate product details before sending response
+  // !note:populate is a method of the Mongoose Document class
+  const populatedCart = await updatedCart.populate("products.productId");
+
+  //! should return 200 OK with the updated cart
+  res.status(200).json(populatedCart);
 };

@@ -15,6 +15,7 @@ const cartSchema = new mongoose.Schema({
       },
       quantity: {
         type: Number,
+        default: 0,
       },
       //!ensure title, price, description are available,event if the product is deleted
       title: {

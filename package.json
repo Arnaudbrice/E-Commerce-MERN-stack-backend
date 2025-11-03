@@ -3,11 +3,11 @@
   "version": "1.0.0",
   "description": "A full-stack **e-commerce web application** built using **MongoDB, Express.js, React.js, and Node.js (MERN)**.   This project provides a smooth shopping experience with secure authentication, cart management, and admin control.",
   "main": "index.js",
-  "type": "module",
   "scripts": {
     "dev": "node --watch --env-file=.env index.js",
     "start": "node index.js"
   },
+  "type": "module",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Arnaudbrice/E-Commerce-MERN-stack-backend.git"
