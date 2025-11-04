@@ -23,7 +23,10 @@ const __dirname = path.dirname(__filename);
 const app = express();
 
 // An array that lists the origins that are allowed to make cross‑origin requests to our API.
-const allowOrigins = ["http://localhost:5173"];
+const allowOrigins = [
+  "https://e-commerce-mern-stack-frontend-q5j0.onrender.com",
+  "http://localhost:5173",
+];
 
 // CORS configuration options
 const corsOptions = {
