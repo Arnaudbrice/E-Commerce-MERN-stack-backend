@@ -1,6 +1,9 @@
 import User from "../models/User.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import sgMail from "@sendgrid/mail";
+// nodejs built-in crypto module
+import crypto from "crypto";
 
 //********** POST /auth/register **********
 
@@ -97,6 +100,105 @@ export const logout = async (req, res) => {
 
   res.status(204).json({ message: "Logged out successfully" });
 };
+
+/****************************************
+ *           reset password
+ ****************************************/
+
+//********** POST /auth/mail-reset-password **********
+
+export const sendMail = async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    throw new Error("Email is required", { cause: 400 });
+  }
+
+  //uses crypto module to create a random secured token consisting of 80 hexadecimal characters (Each byte is represented as two hexadecimal characters)
+  const token = crypto.randomBytes(40).toString("hex");
+
+  const user = await User.findOne({ email });
+
+  if (!user) {
+    throw new Error("User with the email address not found", { cause: 404 });
+  }
+
+  user.resetToken = token;
+  user.resetTokenExpiration = new Date(Date.now() + 3600000); //3600000ms=3600s=60m=1h
+  await user.save();
+
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+  // sgMail.setDataResidency("eu");
+  // uncomment the above line if you are sending mail using a regional EU subuser
+
+  const baseUrl = req.protocol + "://" + req.get("host");
+
+  const msg = {
+    from: "Fullstack E-commerce <arnonono@hotmail.de>", // Change to your recipient
+    to: "arnonono@hotmail.de",
+    cc: email,
+    subject: "Fullstack E-commerce - Password reset request",
+
+    html: `<strong>Reset Your Password Here:</strong> <a href="https:localhost:5173/reset-password">${baseUrl}/reset-password/${token}</a>`,
+  };
+
+  await sgMail.send(msg);
+  res
+    .status(200)
+    .json({ message: "Email for resetting password sent successfully" });
+};
+
+//********** GET /auth/reset-password/:token **********
+export const getResetPassword = async (req, res) => {
+  const { token } = req.params;
+
+  // ensure password reset page can be called only within the expiration time of the token
+  const user = await User.findOne({
+    resetToken: token,
+    resetTokenExpiration: { $gt: new Date() },
+  });
+
+  if (!user) {
+    throw new Error(
+      "Invalid token, please send a new mail to reset your password",
+      { cause: 404 }
+    );
+  }
+
+  res.status(200).json(token);
+};
+
+//********** POST /auth/reset-password/:token **********
+export const resetPassword = async (req, res) => {
+  const { token } = req.params;
+  const { password } = req.body;
+
+  const user = await User.findOne({
+    resetToken: token,
+    resetTokenExpiration: { $gt: new Date() },
+  });
+
+  // only reset the password if the token is valid
+  if (!user) {
+    throw new Error(
+      "Invalid token, please send a new mail to reset your password",
+      { cause: 404 }
+    );
+  }
+
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash(password, salt);
+
+  user.password = hashedPassword;
+  user.resetToken = null;
+  user.resetTokenExpiration = null;
+  await user.save();
+
+  res.status(201).json({ message: "Password reset successfully" });
+};
+/****************************************
+ *           auth me
+ ****************************************/
 
 //********** GET /auth/me **********
 export const getMe = async (req, res) => {

@@ -6,7 +6,7 @@ import "./db/index.js"; //!connect to mongodb database
 
 import authRouter from "./routers/auth.router.js";
 
-import authenticate from "./middlewares/authenticate.js";
+// import authenticate from "./middlewares/authenticate.js";
 import userRouter from "./routers/user.router.js";
 /***********************************************************/
 import path from "path";
@@ -76,7 +76,7 @@ app.get("/health", async (req, res) => {
 app.use("/auth", authRouter);
 
 // protected routes
-app.use(authenticate);
+// app.use(authenticate);
 
 app.use("/users", userRouter);
 
