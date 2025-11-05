@@ -139,7 +139,7 @@ export const sendMail = async (req, res) => {
     cc: email,
     subject: "Fullstack E-commerce - Password reset request",
 
-    html: `<strong>Reset Your Password Here:</strong> <a href="https:localhost:5173/reset-password">${baseUrl}/reset-password/${token}</a>`,
+    html: `<p> <a href="${baseUrl}/reset-password/${token}"><strong>Reset Your Password Here:</strong></a></p>`,
   };
 
   await sgMail.send(msg);
