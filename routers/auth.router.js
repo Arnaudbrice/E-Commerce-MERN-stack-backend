@@ -4,6 +4,9 @@ import {
   login,
   logout,
   getMe,
+  sendMail,
+  getResetPassword,
+  resetPassword,
 } from "../controllers/auth.controller.js";
 import authenticate from "../middlewares/authenticate.js";
 import validateSchema from "../middlewares/validateSchema.js";
@@ -17,6 +20,17 @@ authRouter.post("/register", validateSchema(registerSchema), register);
 
 //********** login **********
 authRouter.post("/login", validateSchema(loginSchema), login);
+
+/****************************************
+ *           reset password
+ ****************************************/
+
+authRouter.post("/mail-reset-password", sendMail);
+
+authRouter
+  .route("/reset-password/:token")
+  .get(getResetPassword)
+  .post(resetPassword);
 
 //********** logout **********
 authRouter.delete("/logout", logout);
