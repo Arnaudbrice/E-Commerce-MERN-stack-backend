@@ -1,6 +1,8 @@
 import express from "express";
 import {
   addProductToCart,
+  clearUserCart,
+  createCheckoutSession,
   createProduct,
   deleteProduct,
   getCartProducts,
@@ -45,5 +47,9 @@ userRouter
   .route("/cart/products/:id")
   .get(authenticate, getProductFromCart)
   .delete(authenticate, removeProductFromCart);
+
+userRouter.delete("/cart/clear", authenticate, clearUserCart);
+
+userRouter.route("/cart/create-checkout-session").post(createCheckoutSession);
 
 export default userRouter;

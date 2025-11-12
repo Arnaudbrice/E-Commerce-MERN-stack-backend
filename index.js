@@ -26,6 +26,7 @@ const app = express();
 const allowOrigins = [
   "https://e-commerce-mern-stack-frontend-q5j0.onrender.com",
   "http://localhost:5173",
+  "https://stripe.com",
 ];
 
 // CORS configuration options
