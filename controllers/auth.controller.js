@@ -2,6 +2,7 @@ import User from "../models/User.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import sgMail from "@sendgrid/mail";
+import nodemailer from "nodemailer";
 // nodejs built-in crypto module
 import crypto from "crypto";
 
@@ -110,6 +111,8 @@ export const logout = async (req, res) => {
 export const sendMail = async (req, res) => {
   const { email } = req.body;
 
+  console.log("email", email);
+
   if (!email) {
     throw new Error("Email is required", { cause: 400 });
   }
@@ -117,6 +120,7 @@ export const sendMail = async (req, res) => {
   //uses crypto module to create a random secured token consisting of 80 hexadecimal characters (Each byte is represented as two hexadecimal characters)
   const token = crypto.randomBytes(40).toString("hex");
 
+  console.log("token", token);
   const user = await User.findOne({ email });
 
   if (!user) {
@@ -127,22 +131,39 @@ export const sendMail = async (req, res) => {
   user.resetTokenExpiration = new Date(Date.now() + 3600000); //3600000ms=3600s=60m=1h
   await user.save();
 
-  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+  // !api key should have full access in sendgrid
+  // sgMail.setApiKey(process.env.SENDGRID_API_KEY);
   // sgMail.setDataResidency("eu");
   // uncomment the above line if you are sending mail using a regional EU subuser
 
   const baseUrl = req.protocol + "://" + req.get("host");
 
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    port: 587,
+    auth: {
+      user: process.env.GMAIL_EMAIL,
+      pass: process.env.GMAIL_APP_PASSWORD,
+    },
+    tls: {
+      rejectUnauthorized: false,
+    },
+  });
+
   const msg = {
-    from: "Fullstack E-commerce <arnonono@hotmail.de>", // Change to your recipient
-    to: "arnonono@hotmail.de",
-    cc: email,
+    from: process.env.GMAIL_EMAIL, // Change to your recipient
+
+    to: user.email,
+
+    // cc: user.email,
     subject: "Fullstack E-commerce - Password reset request",
 
-    html: `<p> <a href="${baseUrl}/reset-password/${token}"><strong>Reset Your Password Here:</strong></a></p>`,
+    html: `<p>Reset Your Password: <a href="${process.env.FRONTEND_BASE_URL}/reset-password/${token}"><strong>Click Here</strong></a></p>`, //html body
   };
 
-  await sgMail.send(msg);
+  // await sgMail.send(msg);
+
+  await transporter.sendMail(msg);
   res
     .status(200)
     .json({ message: "Email for resetting password sent successfully" });

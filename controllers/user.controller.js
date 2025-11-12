@@ -6,6 +6,9 @@ import Cart from "../models/Cart.js";
 
 import chalk from "chalk";
 
+import Stripe from "stripe";
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
 //********** POST /users/products **********
 export const createProduct = async (req, res) => {
   const userId = req.user._id;
@@ -214,4 +217,54 @@ export const removeProductFromCart = async (req, res) => {
 
   //! should return 200 OK with the updated cart
   res.status(200).json(populatedCart);
+};
+
+export const clearUserCart = async (req, res) => {
+  const userId = req.user._id;
+
+  const result = await Cart.findOneAndUpdate(
+    { userId: userId },
+    { $set: { products: [] } },
+    { new: true }
+  );
+
+  if (!result) {
+    throw new Error("Cart not found for this user.", { cause: 404 });
+  }
+
+  res.status(200).json({ message: "Cart cleared successfully!", cart: result });
+};
+
+/****************************************
+ *           payment
+ ****************************************/
+
+//********** POST /users/cart/create-checkout-session **********
+
+export const createCheckoutSession = async (req, res) => {
+  const { cartList } = req.body;
+  const session = await stripe.checkout.sessions.create({
+    payment_method_types: ["card"],
+    mode: "payment",
+    line_items: cartList.products.map((item) => {
+      return {
+        price_data: {
+          currency: "eur",
+          product_data: {
+            name: item.productId.title,
+            images: [item.productId.image],
+            description: item.productId.description,
+          },
+          unit_amount: Math.round(item.productId.price * 100), //convert to cents (e.g. 49.99 EUR = 4999 cents)
+        },
+
+        quantity: item.quantity,
+      };
+    }),
+
+    success_url: `${process.env.FRONTEND_BASE_URL}?success=true`, // Redirect to cart page after payment
+    cancel_url: `${process.env.FRONTEND_BASE_URL}?canceled=true`, // Redirect to cart page after payment
+  });
+
+  res.status(200).json({ url: session.url });
 };
