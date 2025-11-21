@@ -6,11 +6,13 @@ import {
   createProduct,
   deleteProduct,
   getCartProducts,
+  createOrder,
   getProductCategories,
   getProductFromCart,
   getProducts,
   removeProductFromCart,
   updateProduct,
+  updateProductStock,
 } from "../controllers/user.controller.js";
 import uploadFile from "../middlewares/uploadFile.js";
 import validateSchema from "../middlewares/validateSchema.js";
@@ -34,6 +36,8 @@ userRouter.route("/products").get(getProducts).post(
 userRouter.post("/products/:id", authenticate, updateProduct);
 userRouter.delete("/products/:id", authenticate, deleteProduct);
 
+userRouter.put("/products/:id/reduce-stock", authenticate, updateProductStock);
+
 //********** product categories **********
 
 userRouter.get("/products/categories", getProductCategories);
@@ -50,6 +54,12 @@ userRouter
 
 userRouter.delete("/cart/clear", authenticate, clearUserCart);
 
-userRouter.route("/cart/create-checkout-session").post(createCheckoutSession);
+userRouter
+  .route("/cart/create-checkout-session")
+  .post(authenticate, createCheckoutSession);
+
+//********** orders **********
+
+userRouter.post("/orders", authenticate, createOrder);
 
 export default userRouter;

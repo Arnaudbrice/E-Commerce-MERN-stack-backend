@@ -7,7 +7,13 @@ import Cart from "../models/Cart.js";
 import chalk from "chalk";
 
 import Stripe from "stripe";
+import Order from "../models/Order.js";
+import { model } from "mongoose";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+/****************************************
+ *           products
+ ****************************************/
 
 //********** POST /users/products **********
 export const createProduct = async (req, res) => {
@@ -73,8 +79,118 @@ export const deleteProduct = async (req, res) => {
     throw new Error("Product not found", { cause: 404 });
   }
 
-  res.status(204).json(deletedProduct);
+  // res.status(204).end();//204 means no content to be send back (nice for delete or update)
+  res.status(200).json(deletedProduct);
 };
+
+//********** PUT /users/products/:id/reduce-stock **********
+export const updateProductStock = async (req, res) => {
+  const { id } = req.params;
+  const { quantity } = req.body;
+  const userId = req.user._id;
+
+  // const product = await Product.findOne({ _id: id });
+
+  const product = await Product.findByIdAndUpdate(
+    id,
+    { $inc: { stock: -quantity } }, //! Use $inc to decrement 'stock' by 'quantity' and stock:quantity for incrementation
+
+    { new: true, runValidators: true } // {new: true} returns the updated document
+  );
+  if (!product) {
+    throw new Error("Product Not Found", { cause: 404 });
+  }
+
+  console.log(chalk.yellow("product after payment"), product);
+  // decrease stock
+  /* product.stock -= quantity;
+  await product.save(); */
+  res.status(200).json({ message: "Product Stock Updated", product }); //204 means no content to be send back (nice of delete and update)
+  /*   res.status(201).json({ message: "Product Stock Updated", product }); */
+
+  res.redirect("/orders");
+};
+
+//todo: create order after successful payment
+//********** POST /users/orders **********
+export const createOrder = async (req, res) => {
+  const userId = req.user._id;
+
+  console.log("userId in createOrder", userId);
+
+  // !note: after populating cartId, cartId becomes a Cart document that can be save using user.cartId.save()
+
+  /*   const userFound = await User.findOne({ _id: userId });
+
+  const cart = await Cart.findOne({ userId: userId });
+  userFound.cartId = cart._id;
+  await userFound.save();
+  console.log("userFound after populated cartId", userFound); */
+
+  const user = await User.findOne({ _id: userId }).populate("cartId");
+
+  console.log("user with populated cartId", user);
+
+  if (!user || !user.cartId) {
+    throw new Error("User or cart not found", { cause: 404 });
+  }
+
+  const cart = user.cartId;
+
+  if (!cart.products || cart.products.length === 0) {
+    throw new Error("Cart is empty, cannot create order", { cause: 400 });
+  }
+
+  const cartItems = cart.products.map((item) => {
+    return {
+      productId: item.productId,
+      image: item.image,
+      title: item.title,
+      description: item.description,
+      price: item.price,
+      quantity: item.quantity,
+    };
+  });
+
+  // create order
+  const order = await Order.create({
+    userId: userId,
+    products: cartItems, // cartItems is a copy of the cart's products at order time
+  });
+
+  console.log(chalk.green("Order created successfully:"), order);
+
+  // Decrement stock of the successfully ordered products in parallel
+  await Promise.all(
+    order.products.map(
+      async (item) =>
+        await Product.findByIdAndUpdate(
+          item.productId,
+          { $inc: { stock: -item.quantity } },
+          { new: true }
+        )
+    )
+  );
+
+  console.log("order.products after stock update", order.products);
+
+  /*    //!solution1: Refetch cart right before clearing to avoid stale __v
+  const freshCart = await Cart.findById(cart._id);
+  freshCart.products = [];
+  await freshCart.save();
+ */
+  // !solution2: Use updateOne/findByIdAndUpdate instead of save() to avoid stale __v (Verwenden Sie updateOne/findByIdAndUpdate statt save(), um veraltete document version number __v zu vermeiden)
+
+  // Clear user cart after successful order creation and product stock update
+  /*   await Cart.updateOne({ _id: cart._id }, { $set: { products: [] } }); */
+
+  await Cart.findByIdAndUpdate(cart._id, { $set: { products: [] } });
+  res.status(201).json(order);
+};
+
+/****************************************
+ *           category
+ ****************************************/
 
 //********** GET /users/products/categories **********
 export const getProductCategories = async (req, res) => {
@@ -83,7 +199,9 @@ export const getProductCategories = async (req, res) => {
   res.json(categories);
 };
 
-// ################cart##################
+/****************************************
+ *           cart
+ ****************************************/
 //********** GET /users/cart **********
 export const getCartProducts = async (req, res) => {
   const userId = req.user._id;
@@ -157,6 +275,8 @@ export const addProductToCart = async (req, res) => {
       userId,
       products: [],
     });
+    // persist the cart reference on the user so late populates works
+    await User.findByIdAndUpdate(userId, { cartId: cart._id });
   }
 
   // Check if product already in cart
@@ -174,6 +294,7 @@ export const addProductToCart = async (req, res) => {
       title: product.title, // Snapshot product details
       price: product.price,
       description: product.description,
+      image: product.image,
     });
   }
 
@@ -219,6 +340,7 @@ export const removeProductFromCart = async (req, res) => {
   res.status(200).json(populatedCart);
 };
 
+//********** DELETE /users/cart/clear **********
 export const clearUserCart = async (req, res) => {
   const userId = req.user._id;
 
@@ -243,6 +365,7 @@ export const clearUserCart = async (req, res) => {
 
 export const createCheckoutSession = async (req, res) => {
   const { cartList } = req.body;
+  const userId = req.user._id;
   const session = await stripe.checkout.sessions.create({
     payment_method_types: ["card"],
     mode: "payment",
@@ -262,8 +385,8 @@ export const createCheckoutSession = async (req, res) => {
       };
     }),
 
-    success_url: `${process.env.FRONTEND_BASE_URL}?success=true`, // Redirect to cart page after payment
-    cancel_url: `${process.env.FRONTEND_BASE_URL}?canceled=true`, // Redirect to cart page after payment
+    success_url: `${process.env.FRONTEND_BASE_URL}/cart?success=true`, // Redirect to cart page after payment
+    cancel_url: `${process.env.FRONTEND_BASE_URL}/cart?canceled=true`, // Redirect to cart page after payment
   });
 
   res.status(200).json({ url: session.url });
