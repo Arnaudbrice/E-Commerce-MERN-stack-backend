@@ -111,7 +111,29 @@ export const updateProductStock = async (req, res) => {
   res.redirect("/orders");
 };
 
-//todo: create order after successful payment
+/****************************************
+ *           order
+ ****************************************/
+
+//********** GET /users/orders **********
+export const getOrders = async (req, res) => {
+  const userId = req.user._id;
+
+  const orders = await Order.find({ userId: userId }).populate(
+    "products.productId"
+  ); //!populate every productId in the products array
+
+  if (!orders.length) {
+    throw new Error("No orders found for this user", { cause: 404 });
+  }
+
+  console.log("orders products", orders);
+
+  const ordersProducts = orders.map((order) => order.products);
+
+  res.json(ordersProducts);
+};
+
 //********** POST /users/orders **********
 export const createOrder = async (req, res) => {
   const userId = req.user._id;

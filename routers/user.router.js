@@ -13,6 +13,7 @@ import {
   removeProductFromCart,
   updateProduct,
   updateProductStock,
+  getOrders,
 } from "../controllers/user.controller.js";
 import uploadFile from "../middlewares/uploadFile.js";
 import validateSchema from "../middlewares/validateSchema.js";
@@ -60,6 +61,9 @@ userRouter
 
 //********** orders **********
 
-userRouter.post("/orders", authenticate, createOrder);
+userRouter
+  .route("/orders")
+  .get(authenticate, getOrders)
+  .post(authenticate, createOrder);
 
 export default userRouter;
