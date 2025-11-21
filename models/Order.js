@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const cartSchema = new mongoose.Schema({
+const orderSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
@@ -13,33 +13,29 @@ const cartSchema = new mongoose.Schema({
         ref: "Product",
         required: true,
       },
-
-      quantity: {
-        type: Number,
-        default: 0,
-      },
-      //!ensure image,title, price, description are available,event if the product is deleted
       image: {
         type: String,
         required: true,
       },
-
       title: {
         type: String,
-        required: true,
-      },
-      price: {
-        type: mongoose.Schema.Types.Decimal128, // ( Decimal128 supports up to 34 decimal digits of precision.)
         required: true,
       },
       description: {
         type: String,
         required: true,
       },
+      price: {
+        type: mongoose.Schema.Types.Decimal128,
+        required: true,
+      },
+      quantity: {
+        type: Number,
+        required: true,
+      },
     },
   ],
 });
 
-const Cart = mongoose.model("Cart", cartSchema);
-
-export default Cart;
+const Order = mongoose.model("Order", orderSchema);
+export default Order;
