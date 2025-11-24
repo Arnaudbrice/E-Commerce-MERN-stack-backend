@@ -124,12 +124,17 @@ export const getOrders = async (req, res) => {
   ); //!populate every productId in the products array
 
   if (!orders.length) {
-    throw new Error("No orders found for this user", { cause: 404 });
+    /*   throw new Error("No orders found for this user", { cause: 404 }); */
+    res.status(200).json([]);
+    return;
   }
 
-  console.log("orders products", orders);
+  // array of populated products arrays
+  const ordersProducts = orders.map((order) => [
+    { id: order._id, products: order.products },
+  ]);
 
-  const ordersProducts = orders.map((order) => order.products);
+  console.log("ordersProducts", ordersProducts);
 
   res.json(ordersProducts);
 };
@@ -149,15 +154,22 @@ export const createOrder = async (req, res) => {
   await userFound.save();
   console.log("userFound after populated cartId", userFound); */
 
-  const user = await User.findOne({ _id: userId }).populate("cartId");
+  const user = await User.findById(userId).populate("cartId");
 
-  console.log("user with populated cartId", user);
+  let cart = user?.cartId;
 
-  if (!user || !user.cartId) {
-    throw new Error("User or cart not found", { cause: 404 });
+  if (!cart) {
+    cart = await Cart.findOne({ userId }); // fallback
+    if (!cart) {
+      throw new Error("User or cart not found", { cause: 404 });
+    }
   }
 
-  const cart = user.cartId;
+  /* if (!user || !user.cartId) {
+    throw new Error("User or cart not found", { cause: 404 });
+  }
+ */
+  // const cart = user.cartId;
 
   if (!cart.products || cart.products.length === 0) {
     throw new Error("Cart is empty, cannot create order", { cause: 400 });
@@ -293,7 +305,7 @@ export const addProductToCart = async (req, res) => {
 
   if (!cart) {
     // Create a new cart if one doesn't exist for the user
-    cart = new Cart({
+    cart = await Cart.create({
       userId,
       products: [],
     });
