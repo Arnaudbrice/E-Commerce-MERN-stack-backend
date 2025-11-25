@@ -13,9 +13,9 @@ import path from "path";
 import { fileURLToPath } from "url";
 import errorHandler from "./middlewares/errorHandler.js";
 
-//! return a cross-platform valid absolute path string
+//! return a cross-platform valid absolute path to the current file (import.meta.url returns full url of the current file)
 const __filename = fileURLToPath(import.meta.url);
-// return the directory name of a path string
+// return the directory name of the absolute path to the current file
 const __dirname = path.dirname(__filename);
 
 /***********************************************************/
