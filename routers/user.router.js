@@ -14,6 +14,7 @@ import {
   updateProduct,
   updateProductStock,
   getOrders,
+  getOrderInvoice,
 } from "../controllers/user.controller.js";
 import uploadFile from "../middlewares/uploadFile.js";
 import validateSchema from "../middlewares/validateSchema.js";
@@ -65,5 +66,7 @@ userRouter
   .route("/orders")
   .get(authenticate, getOrders)
   .post(authenticate, createOrder);
+
+userRouter.route("/orders/:id/invoice").get(authenticate, getOrderInvoice);
 
 export default userRouter;

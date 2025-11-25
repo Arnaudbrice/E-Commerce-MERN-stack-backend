@@ -8,7 +8,17 @@ import chalk from "chalk";
 
 import Stripe from "stripe";
 import Order from "../models/Order.js";
-import { model } from "mongoose";
+import PDFDocument from "pdfkit";
+import path from "path";
+import { fileURLToPath } from "url";
+import fs from "fs";
+import axios from "axios";
+
+//! return a cross-platform valid absolute path to the current file (import.meta.url returns full url of the current file)-> /Users/Arnaud/Desktop/wdg23/Project-Mern-stack-e-commerce/E-Commerce-MERN-stack-backend/controllers/user.controller.js
+const __filename = fileURLToPath(import.meta.url);
+// return the directory name of the absolute path to the current file->/Users/Arnaud/Desktop/wdg23/Project-Mern-stack-e-commerce/E-Commerce-MERN-stack-backend/controllers
+const __dirname = path.dirname(__filename);
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 /****************************************
@@ -221,6 +231,174 @@ export const createOrder = async (req, res) => {
   await Cart.findByIdAndUpdate(cart._id, { $set: { products: [] } });
   res.status(201).json(order);
 };
+
+//********** GET /users/orders/:id/invoice **********
+export const getOrderInvoice = async (req, res) => {
+  const { id } = req.params;
+  const order = await Order.findById(id);
+  if (!order) {
+    throw new Error("Order not found", { cause: 404 });
+  }
+
+  const invoiceName = `invoice-${order._id}.pdf`;
+
+  // !process.cwd() returns the directory your Node process was started from
+  const invoiceDir = path.join(process.cwd(), "data", "invoices");
+  const invoicePath = path.join(process.cwd(), "data", "invoices", invoiceName);
+
+  // create invoice directory if it doesn't exist
+  if (!fs.existsSync(invoiceDir)) {
+    fs.mkdirSync(invoiceDir, { recursive: true });
+  }
+
+  // Tell the client the response body is PDF content
+  res.setHeader("Content-Type", "application/pdf");
+
+  // to download directly instead of just opening the file in a new tab (to open it in the browser replace attachment with inline)
+  res.setHeader("Content-Disposition", "inline;filename=" + invoiceName);
+
+  // create PDF document
+  const pdf = new PDFDocument({ size: "A4", margin: 50 });
+
+  const fileStream = fs.createWriteStream(invoicePath);
+  // !Pipe the stream AFTER setting the response headers
+  // send the generated PDF data as response back to the client
+  pdf.pipe(fileStream);
+  pdf.pipe(res);
+
+  //! pdf configuration (add content to the PDF)
+  const fontPathTitle = path.join(process.cwd(), "font", "Outfit-Bold.ttf");
+  const fontPathText = path.join(process.cwd(), "font", "Outfit-Regular.ttf");
+
+  addHeader(pdf, fontPathText, order._id, order.createdAt);
+
+  // pdf.font(fontPath).fontSize(40).text("Invoice", { align: "center" });
+  pdf
+    .font(fontPathTitle)
+    .fontSize(20)
+    .text("Invoice", { align: "center", underline: true });
+  pdf.moveDown();
+  pdf.font(fontPathText).fontSize(12);
+
+  pdf.moveDown();
+  // separate products with a line
+  pdf
+    .moveTo(50, pdf.y) // start x, current y
+    .lineTo(550, pdf.y) // end x, same y
+    .strokeColor("#cccccc") // light gray
+    .lineWidth(1)
+    .stroke();
+  pdf.moveDown();
+
+  for (const product of order.products) {
+    /* pdf.image(product.image, {
+      width: 100,
+      height: 100,
+    });
+ */
+    //! add new page if the current row height exceeds the page height(if the current page is full)
+    const rowHeight = 20;
+
+    if (pdf.y + rowHeight >= pdf.page.height - pdf.page.margins.bottom) {
+      pdf.addPage();
+    }
+    // Try to render image if URL present
+    if (product.image) {
+      try {
+        const response = await axios.get(product.image, {
+          responseType: "arraybuffer",
+        });
+        const imgBuffer = Buffer.from(response.data);
+
+        pdf.image(imgBuffer, {
+          width: 80,
+          height: 80,
+        });
+        pdf.moveDown();
+      } catch (err) {
+        console.error("Failed to load product image:", product.image, err);
+        pdf.fontSize(8).text("[Image unavailable]");
+        pdf.moveDown();
+      }
+    }
+
+    pdf.moveDown();
+    pdf.text(`Product: ${product.title} `, {
+      width: 410,
+      align: "left",
+    });
+    pdf.moveDown();
+    pdf.text(`Quantity: ${product.quantity}`, {
+      width: 410,
+      align: "left",
+    });
+    pdf.moveDown();
+    pdf.text(`Price: ${parseFloat(product.price).toFixed(2) + " €"}`, {
+      width: 410,
+      align: "left",
+    });
+    pdf.moveDown();
+
+    // separate products with a line
+    pdf
+      .moveTo(50, pdf.y) // start x, current y
+      .lineTo(550, pdf.y) // end x, same y
+      .strokeColor("#cccccc") // light gray
+      .lineWidth(1)
+      .stroke();
+    pdf.moveDown();
+  }
+
+  addFooter(pdf, fontPathText);
+
+  pdf.end();
+};
+
+function addHeader(doc, fontPath, invoiceId, invoiceDate) {
+  doc.font(fontPath);
+  // Company name / logo area
+  doc.fontSize(24).text("Bon Marché", { align: "left" });
+
+  doc.moveDown(0.2);
+  doc
+    .fontSize(10)
+    .text("Street Address 123", { align: "left" })
+    .text("12345 City, Country", { align: "left" })
+    .text("support@yourcompany.com", { align: "left" });
+
+  doc.moveUp(4); // move cursor up to same line height as title
+  doc.fontSize(32).text("INVOICE", {
+    align: "right",
+  });
+  doc
+    .fontSize(10)
+    .text(`Invoice ID: ${invoiceId}`, { align: "right" })
+    .text(`Invoice Date: ${invoiceDate}`, { align: "right" });
+  doc.moveDown(2);
+
+  doc.moveDown();
+}
+
+function addFooter(doc, fontPath) {
+  const bottom = doc.page.height - doc.page.margins.bottom;
+
+  doc.font(fontPath).fontSize(8).fillColor("#888888");
+
+  doc.text("Thank You For Your Payment!", doc.page.margins.left, bottom - 40, {
+    align: "center",
+    width: doc.page.width - doc.page.margins.left - doc.page.margins.right,
+  });
+
+  doc.text(
+    " Please contact us if you have any questions.",
+    doc.page.margins.left,
+    bottom - 25,
+    {
+      align: "center",
+      width: doc.page.width - doc.page.margins.left - doc.page.margins.right,
+    }
+  );
+}
 
 /****************************************
  *           category
