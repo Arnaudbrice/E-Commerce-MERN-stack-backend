@@ -1,18 +1,15 @@
-import User from "../models/User.js";
-import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
-import Product from "../models/Product.js";
 import Cart from "../models/Cart.js";
+import Product from "../models/Product.js";
+import User from "../models/User.js";
 
 import chalk from "chalk";
 
-import Stripe from "stripe";
-import Order from "../models/Order.js";
-import PDFDocument from "pdfkit";
-import path from "path";
-import { fileURLToPath } from "url";
 import fs from "fs";
-import axios from "axios";
+import path from "path";
+import PDFDocument from "pdfkit";
+import Stripe from "stripe";
+import { fileURLToPath } from "url";
+import Order from "../models/Order.js";
 
 //! return a cross-platform valid absolute path to the current file (import.meta.url returns full url of the current file)-> /Users/Arnaud/Desktop/wdg23/Project-Mern-stack-e-commerce/E-Commerce-MERN-stack-backend/controllers/user.controller.js
 const __filename = fileURLToPath(import.meta.url);
@@ -236,34 +233,26 @@ export const createOrder = async (req, res) => {
 export const getOrderInvoice = async (req, res) => {
   const { id } = req.params;
   const order = await Order.findById(id);
+  let total = 0;
   if (!order) {
     throw new Error("Order not found", { cause: 404 });
   }
 
   const invoiceName = `invoice-${order._id}.pdf`;
 
-  // !process.cwd() returns the directory your Node process was started from
-  const invoiceDir = path.join(process.cwd(), "data", "invoices");
-  const invoicePath = path.join(process.cwd(), "data", "invoices", invoiceName);
-
-  // create invoice directory if it doesn't exist
-  if (!fs.existsSync(invoiceDir)) {
-    fs.mkdirSync(invoiceDir, { recursive: true });
-  }
+  //?  1) es6 process.cwd() returns the directory where you ran node your-script.js
+  //? 2) commonJS __dirname returns the directory of the current file (controller in this case)
 
   // Tell the client the response body is PDF content
   res.setHeader("Content-Type", "application/pdf");
 
-  // to download directly instead of just opening the file in a new tab (to open it in the browser replace attachment with inline)
-  res.setHeader("Content-Disposition", "inline;filename=" + invoiceName);
+  //! to download directly instead of just opening the file in a new tab (to open it in the browser replace attachment with inline)-> no needed here because the frontend will handle the way to open or download the received pdf file
+  /*   res.setHeader("Content-Disposition", "attachment;filename=" + invoiceName); */
+  res.setHeader("Content-Disposition", "filename=" + invoiceName);
 
   // create PDF document
   const pdf = new PDFDocument({ size: "A4", margin: 50 });
 
-  const fileStream = fs.createWriteStream(invoicePath);
-  // !Pipe the stream AFTER setting the response headers
-  // send the generated PDF data as response back to the client
-  pdf.pipe(fileStream);
   pdf.pipe(res);
 
   //! pdf configuration (add content to the PDF)
@@ -305,10 +294,16 @@ export const getOrderInvoice = async (req, res) => {
     // Try to render image if URL present
     if (product.image) {
       try {
-        const response = await axios.get(product.image, {
-          responseType: "arraybuffer",
-        });
-        const imgBuffer = Buffer.from(response.data);
+        // pdf.image needs image bytes as input,not url, so we need to fetch the image from the URL and convert it to bytes
+
+        //! without the option method "GET" specified, the default method is "GET"
+        const response = await fetch(product.image);
+        if (!response.ok)
+          throw new Error("Failed to fetch image", {
+            cause: response.status,
+          });
+        const arrayBuf = await response.arrayBuffer();
+        const imgBuffer = Buffer.from(arrayBuf);
 
         pdf.image(imgBuffer, {
           width: 80,
@@ -346,9 +341,24 @@ export const getOrderInvoice = async (req, res) => {
       .strokeColor("#cccccc") // light gray
       .lineWidth(1)
       .stroke();
+    total = total + parseFloat(product.price) * product.quantity;
     pdf.moveDown();
   }
 
+  pdf
+    .font(fontPathTitle)
+    .fontSize(20)
+    .text(`Total: ${total.toFixed(2)}${" €"}`, {
+      align: "center",
+    });
+
+  // separate products with a line
+  pdf
+    .moveTo(50, pdf.y) // start x, current y
+    .lineTo(550, pdf.y) // end x, same y
+    .strokeColor("#cccccc") // light gray
+    .lineWidth(1)
+    .stroke();
   addFooter(pdf, fontPathText);
 
   pdf.end();
@@ -367,16 +377,17 @@ function addHeader(doc, fontPath, invoiceId, invoiceDate) {
     .text("support@yourcompany.com", { align: "left" });
 
   doc.moveUp(4); // move cursor up to same line height as title
-  doc.fontSize(32).text("INVOICE", {
+  doc.fontSize(32).text("Order", {
     align: "right",
   });
   doc
     .fontSize(10)
-    .text(`Invoice ID: ${invoiceId}`, { align: "right" })
-    .text(`Invoice Date: ${invoiceDate}`, { align: "right" });
+    .text(`Order ID: ${invoiceId}`, { align: "right" })
+    .text(
+      `Order Date: ${new Date(invoiceDate.toString().split("GMT")[0]).toLocaleString()}`,
+      { align: "right" }
+    );
   doc.moveDown(2);
-
-  doc.moveDown();
 }
 
 function addFooter(doc, fontPath) {
