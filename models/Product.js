@@ -6,13 +6,20 @@ const productSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    price: {
+    /*  price: {
       type: mongoose.Schema.Types.Decimal128,
       required: true,
       set: (value) =>
         mongoose.Types.Decimal128.fromString(parseFloat(value).toFixed(2)), // Convert to Decimal128
       get: (value) => parseFloat(value.toString()), // Convert Decimal128 to number
+    } */
+
+    price: {
+      type: Number,
+      required: true,
+      min: 0, // optional guard
     },
+
     description: {
       type: String,
       required: true,
@@ -42,6 +49,10 @@ const productSchema = new mongoose.Schema(
       type: Number,
       default: 0,
       min: [0, "Stock cannot be negative"],
+    },
+    isFavorite: {
+      type: Boolean,
+      default: false,
     },
     rating: {
       type: Number,

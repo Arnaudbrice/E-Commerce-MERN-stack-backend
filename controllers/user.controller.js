@@ -10,6 +10,7 @@ import PDFDocument from "pdfkit";
 import Stripe from "stripe";
 import { fileURLToPath } from "url";
 import Order from "../models/Order.js";
+import { fa } from "zod/v4/locales";
 
 //! return a cross-platform valid absolute path to the current file (import.meta.url returns full url of the current file)-> /Users/Arnaud/Desktop/wdg23/Project-Mern-stack-e-commerce/E-Commerce-MERN-stack-backend/controllers/user.controller.js
 const __filename = fileURLToPath(import.meta.url);
@@ -420,6 +421,35 @@ export const getProductCategories = async (req, res) => {
   const categories = await Product.schema.path("category").enumValues;
 
   res.json(categories);
+};
+
+/****************************************
+ *           favorite
+ ****************************************/
+
+export const updateProductFavorite = async (req, res) => {
+  const { isFavorite } = req.body;
+  const { id } = req.params;
+
+  console.log("productId", id);
+
+  const updatedProduct = await Product.findByIdAndUpdate(
+    id,
+    { $set: { isFavorite } },
+    { new: true }
+  ); //return the updated document
+  if (!updatedProduct) {
+    throw new Error("Product not found", { cause: 404 });
+  }
+  res.status(200).json(updatedProduct);
+};
+
+export const getFavoriteProducts = async (req, res) => {
+  const favoriteProducts = await Product.find({ isFavorite: true });
+
+  const numberOfFavoriteProducts = favoriteProducts.length;
+
+  res.json({ favoriteProducts, numberOfFavoriteProducts });
 };
 
 /****************************************
