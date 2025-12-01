@@ -15,6 +15,8 @@ import {
   updateProductStock,
   getOrders,
   getOrderInvoice,
+  updateProductFavorite,
+  getFavoriteProducts,
 } from "../controllers/user.controller.js";
 import uploadFile from "../middlewares/uploadFile.js";
 import validateSchema from "../middlewares/validateSchema.js";
@@ -43,6 +45,14 @@ userRouter.put("/products/:id/reduce-stock", authenticate, updateProductStock);
 //********** product categories **********
 
 userRouter.get("/products/categories", getProductCategories);
+
+//********** favorite product  **********
+
+userRouter
+  .route("/products/:id/favorite")
+  .put(authenticate, updateProductFavorite);
+
+userRouter.route("/products/favorite").get(authenticate, getFavoriteProducts);
 
 //********** cart **********
 userRouter
