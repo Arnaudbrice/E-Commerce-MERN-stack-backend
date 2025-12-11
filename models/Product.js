@@ -6,13 +6,6 @@ const productSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    /*  price: {
-      type: mongoose.Schema.Types.Decimal128,
-      required: true,
-      set: (value) =>
-        mongoose.Types.Decimal128.fromString(parseFloat(value).toFixed(2)), // Convert to Decimal128
-      get: (value) => parseFloat(value.toString()), // Convert Decimal128 to number
-    } */
 
     price: {
       type: Number,
@@ -28,7 +21,7 @@ const productSchema = new mongoose.Schema(
       type: String,
       enum: [
         "Electronics",
-        "Jewerly",
+        "Jewelry",
         "Men's Clothing",
         "Women's Clothing",
         "Kids's Clothing",
@@ -54,23 +47,31 @@ const productSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    rating: {
-      type: Number,
-      min: [0, "Rating cannot be below 0"],
-      max: [5, "Rating cannot exceed 5"],
-      default: 0,
-    },
 
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
+
+    // multiple reviews stored here
+    /*  reviews: {
+    type: [reviewSchema],
+    default: []  // IMPORTANT
+  }, */
+    reviews: {
+      type: [mongoose.Schema.Types.ObjectId],
+      ref: "Review",
+      default: [],
+    },
+
+    // store average rating for quick access
+    averageRating: {
+      type: Number,
+    },
   },
   {
-    timestamps: true,
-    toJSON: { getters: true }, // Enable getters when converting to JSON
-    toObject: { getters: true }, // Enable getters when converting to Object
+    timestamps: true, // adds createdAt & updatedAt
   }
 
   // adds createdAt & updatedAt

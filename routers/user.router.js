@@ -17,6 +17,8 @@ import {
   getOrderInvoice,
   updateProductFavorite,
   getFavoriteProducts,
+  updateProductRating,
+  getProduct,
 } from "../controllers/user.controller.js";
 import uploadFile from "../middlewares/uploadFile.js";
 import validateSchema from "../middlewares/validateSchema.js";
@@ -35,24 +37,40 @@ userRouter.route("/products").get(getProducts).post(
 
   createProduct
 );
-// userRouter.get("/products", getProducts);
-
-userRouter.post("/products/:id", authenticate, updateProduct);
-userRouter.delete("/products/:id", authenticate, deleteProduct);
-
-userRouter.put("/products/:id/reduce-stock", authenticate, updateProductStock);
+userRouter.get("/product", getProducts);
 
 //********** product categories **********
-
+//! keep this above the :id route so "categories" is not treated as an id
 userRouter.get("/products/categories", getProductCategories);
 
 //********** favorite product  **********
 
+// ! keep this above the :id route so "favorite" is not treated as an id
+
+userRouter.route("/products/favorite").get(authenticate, getFavoriteProducts);
+
+/* userRouter.post("/products/:id", authenticate, updateProduct);
+userRouter.delete("/products/:id", authenticate, deleteProduct);
+userRouter.put("/products/:id", authenticate, updateProductRating);
+ */
+userRouter
+  .route("/products/:id")
+  .get(authenticate, getProduct)
+  .post(authenticate, updateProduct)
+  .delete(authenticate, deleteProduct)
+  .put(authenticate, updateProductRating);
+
+userRouter.put("/products/:id/reduce-stock", authenticate, updateProductStock);
+
+//********** favorite product  **********
+
+// ! keep this above the :id route so "favorite" is not treated as an id
+
+/* userRouter.route("/products/favorite").get(authenticate, getFavoriteProducts); */
+
 userRouter
   .route("/products/:id/favorite")
   .put(authenticate, updateProductFavorite);
-
-userRouter.route("/products/favorite").get(authenticate, getFavoriteProducts);
 
 //********** cart **********
 userRouter

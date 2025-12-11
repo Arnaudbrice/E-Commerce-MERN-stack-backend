@@ -5,12 +5,13 @@ import User from "../models/User.js";
 import chalk from "chalk";
 
 import fs from "fs";
-import path from "path";
+import path, { sep } from "path";
 import PDFDocument from "pdfkit";
 import Stripe from "stripe";
 import { fileURLToPath } from "url";
 import Order from "../models/Order.js";
-import { fa } from "zod/v4/locales";
+import Review from "../models/Review.js";
+import mongoose from "mongoose";
 
 //! return a cross-platform valid absolute path to the current file (import.meta.url returns full url of the current file)-> /Users/Arnaud/Desktop/wdg23/Project-Mern-stack-e-commerce/E-Commerce-MERN-stack-backend/controllers/user.controller.js
 const __filename = fileURLToPath(import.meta.url);
@@ -56,10 +57,11 @@ export const getProducts = async (req, res) => {
 //********** GET /users/products/:id **********
 export const getProduct = async (req, res) => {
   const { id } = req.params;
-  const product = await Product.findById(id);
+  const product = await Product.findById(id).populate("reviews");
   if (!product) {
     throw new Error("Product not found", { cause: 404 });
   }
+  console.log(chalk.blue("product", product));
   res.json(product);
 };
 //********** POST /users/products/:id **********
@@ -117,6 +119,123 @@ export const updateProductStock = async (req, res) => {
   /*   res.status(201).json({ message: "Product Stock Updated", product }); */
 
   res.redirect("/orders");
+};
+
+//********** handle rating **********
+//********** PUT /users/products/:id **********
+export const updateProductRating = async (req, res) => {
+  const userId = req.user._id;
+  const { id } = req.params;
+  const { rating, comment } = req.body;
+  // let isRatingExists = false;
+
+  console.log("rating", rating);
+  console.log("comment", comment);
+
+  console.log("id", id);
+  console.log("userId", userId);
+
+  /*
+MongoDB's dot notation allows querying fields within array subdocuments. For example, `{ userId: userId, "products.productId": id }` retrieves an order where any product in the `products` array has `productId` equal to `id`. The `$elemMatch` operator is only necessary when applying multiple conditions to the same array element, such as requiring both `productId === id` and `quantity > 1`. */
+  const existOrderForUser = await Order.findOne({
+    userId: userId,
+    "products.productId": id,
+  });
+  if (!existOrderForUser) {
+    throw new Error(
+      "No Order Found, You Can Only Rate Products That You Have Purchased",
+      { cause: 404 }
+    );
+  }
+
+  const product = await Product.findById(id).populate("reviews");
+
+  if (!product) {
+    throw new Error("Product not found", { cause: 404 });
+  }
+
+  const review = {
+    product: product._id,
+    user: userId, // Passing a string, Mongoose will cast it to ObjectId
+    rating,
+    comment,
+  };
+  const existingReview = product.reviews.find(
+    (review) => review.user.toString() === userId.toString()
+  );
+  console.log("existingReview------------------", existingReview);
+
+  if (existingReview) {
+    /*  existingReview.rating = rating;
+    existingReview.comment = comment; */
+    // !The $[review] is a placeholder for the specific array element that matches the condition in arrayFilters.
+
+    console.log("existingReview", existingReview);
+
+    /*  await Product.findByIdAndUpdate(
+      id,
+      {
+        $set: {
+          "reviews.$[review].rating": rating,
+          "reviews.$[review].comment": comment,
+        },
+      },
+      {
+        arrayFilters: [{ "review.user": userObjectId }],
+      }
+    ); */
+    /*  await Review.findOneAndUpdate(
+      { product: productObjectId, user: userObjectId },
+      { $set: { rating, comment } }
+    ); */
+
+    const updatedReview = await Review.findByIdAndUpdate(
+      existingReview._id,
+      {
+        $set: { rating, comment },
+      },
+      { new: true }
+    );
+
+    for (const review of product.reviews) {
+      if (review._id.toString() === existingReview._id.toString()) {
+        // object mutation
+        review.rating = updatedReview.rating;
+        review.comment = updatedReview.comment;
+      }
+    }
+
+    // isRatingExists = true;
+  } else {
+    const newReview = await Review.create(review);
+
+    console.log("newReview", newReview);
+
+    // update the populated product object with the new review
+    product.reviews.push(newReview);
+    /* product.reviews.push(newReview);
+    await product.save(); */
+  }
+
+  console.log(chalk.magenta("product.reviews", product.reviews));
+  // recalculate average rating of the populated product object
+  product.averageRating =
+    Math.round(
+      parseFloat(
+        product?.reviews?.reduce(
+          (accumulator, currentReview) => accumulator + currentReview.rating,
+          0
+        ) / product.reviews.length
+      ).toFixed(1) * 2
+    ) / 2;
+  console.log("product.averageRating", product.averageRating);
+
+  const updatedProduct = await product.save();
+
+  console.log(chalk.red("updatedProduct", updatedProduct));
+
+  res.status(200).json(updatedProduct);
+  // res.status(200).json({ updatedProduct, isRatingExists });
 };
 
 /****************************************
@@ -418,7 +537,9 @@ function addFooter(doc, fontPath) {
 
 //********** GET /users/products/categories **********
 export const getProductCategories = async (req, res) => {
-  const categories = await Product.schema.path("category").enumValues;
+  const categories = Product.schema.path("category").enumValues;
+
+  // console.log("categories", categories);
 
   res.json(categories);
 };
