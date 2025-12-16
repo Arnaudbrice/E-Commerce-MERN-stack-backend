@@ -56,9 +56,10 @@ userRouter.put("/products/:id", authenticate, updateProductRating);
 userRouter
   .route("/products/:id")
   .get(authenticate, getProduct)
-  .post(authenticate, updateProduct)
   .delete(authenticate, deleteProduct)
-  .put(authenticate, updateProductRating);
+  .put(authenticate, uploadFile, validateSchema(productSchema), updateProduct);
+
+userRouter.route("/products/:id/rating").put(authenticate, updateProductRating);
 
 userRouter.put("/products/:id/reduce-stock", authenticate, updateProductStock);
 
