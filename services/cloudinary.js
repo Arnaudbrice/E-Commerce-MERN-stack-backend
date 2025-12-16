@@ -8,7 +8,7 @@ class Cloudinary {
       api_secret: process.env.CLOUDINARY_API_SECRET,
     });
   }
-  // this method is called under the hood by multer to handle the file upload using the cloudinary storage engine
+  // this method is called under the hood by multer to handle the file upload using the cloudinary storage engine ( Multer usually won’t call _handleFile if no file exists)
   _handleFile(req, file, cb) {
     const uploadStream = cloudinary.uploader.upload_stream(
       {

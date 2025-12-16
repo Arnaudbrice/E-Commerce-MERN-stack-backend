@@ -32,7 +32,7 @@ export const createProduct = async (req, res) => {
   console.log("req file", req.file); */
   const { title, price, description, category, stock } = req.body;
 
-  // get the secure url of the uploaded image from cloudinary storage
+  // get the secure url of the uploaded image from cloudinary storage (after successfully uploading the image to cloudinary storage)
   const imageUrl = req.file.secure_url;
 
   const product = await Product.create({
@@ -64,20 +64,6 @@ export const getProduct = async (req, res) => {
   console.log(chalk.blue("product", product));
   res.json(product);
 };
-//********** POST /users/products/:id **********
-export const updateProduct = async (req, res) => {
-  const { id } = req.params;
-
-  const updatedProduct = await Product.findByIdAndUpdate(id, req.body, {
-    new: true, //return the updated document
-    runValidators: true, //runs mongoose validators
-  });
-
-  if (updatedProduct) {
-    throw new Error("Product not found", { cause: 404 });
-  }
-  res.status(204).json(updatedProduct);
-};
 
 //********** DELETE /users/products/:id **********
 export const deleteProduct = async (req, res) => {
@@ -91,6 +77,35 @@ export const deleteProduct = async (req, res) => {
 
   // res.status(204).end();//204 means no content to be send back (nice for delete or update)
   res.status(200).json(deletedProduct);
+};
+
+//********** PUT /users/products/:id **********
+
+export const updateProduct = async (req, res) => {
+  const { id } = req.params;
+
+  console.log("req.body in updateProduct", "hello");
+  /*  const { title, description, category, stock, price, image } = req.body; */
+  let update = { ...req.body };
+
+  // get the secure url of the uploaded image from cloudinary storage (after successfully uploading the image to cloudinary storage)
+  const imageUrl = req.file?.secure_url;
+
+  if (imageUrl) {
+    update.image = imageUrl;
+  }
+
+  const updatedProduct = await Product.findByIdAndUpdate(id, update, {
+    new: true,
+  });
+
+  if (!updatedProduct) {
+    throw new Error("Product not found", { cause: 404 });
+  }
+
+  console.log("updatedProduct", updatedProduct);
+
+  res.status(200).json(updatedProduct);
 };
 
 //********** PUT /users/products/:id/reduce-stock **********
@@ -122,7 +137,7 @@ export const updateProductStock = async (req, res) => {
 };
 
 //********** handle rating **********
-//********** PUT /users/products/:id **********
+//********** PUT /users/products/:id/rating **********
 export const updateProductRating = async (req, res) => {
   const userId = req.user._id;
   const { id } = req.params;
