@@ -12,6 +12,7 @@ import { fileURLToPath } from "url";
 import Order from "../models/Order.js";
 import Review from "../models/Review.js";
 import mongoose from "mongoose";
+import { getPagination } from "../utils/pagination.js";
 
 //! return a cross-platform valid absolute path to the current file (import.meta.url returns full url of the current file)-> /Users/Arnaud/Desktop/wdg23/Project-Mern-stack-e-commerce/E-Commerce-MERN-stack-backend/controllers/user.controller.js
 const __filename = fileURLToPath(import.meta.url);
@@ -19,6 +20,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+const itemPerPage = 10; //display 10 products per page
 
 /****************************************
  *           products
@@ -50,8 +53,23 @@ export const createProduct = async (req, res) => {
 
 //********** GET /users/products **********
 export const getProducts = async (req, res) => {
-  const products = await Product.find();
-  res.json(products);
+  const nunberOfProducts = await Product.countDocuments();
+  const currentPageNumber = Number(req.query.page) || 1;
+
+  console.log("currentPageNumber", currentPageNumber);
+
+  const numberOfPages = Math.ceil(nunberOfProducts / itemPerPage);
+
+  const paginationArray = getPagination(currentPageNumber, numberOfPages, 5);
+  console.log("paginationArray", paginationArray);
+
+  const products = await Product.find()
+    .skip((currentPageNumber - 1) * itemPerPage)
+    .limit(itemPerPage);
+
+  // const products = await Product.find();
+
+  res.json({ products, paginationArray, currentPageNumber });
 };
 
 //********** GET /users/products/:id **********
