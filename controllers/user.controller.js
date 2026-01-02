@@ -54,6 +54,7 @@ export const createProduct = async (req, res) => {
 //********** GET /users/products **********
 export const getProducts = async (req, res) => {
   const nunberOfProducts = await Product.countDocuments();
+  console.log("nunberOfProducts", nunberOfProducts);
   const currentPageNumber = Number(req.query.page) || 1;
 
   console.log("currentPageNumber", currentPageNumber);
@@ -63,13 +64,21 @@ export const getProducts = async (req, res) => {
   const paginationArray = getPagination(currentPageNumber, numberOfPages, 5);
   console.log("paginationArray", paginationArray);
 
-  const products = await Product.find()
+  const products = await Product.find();
+
+  const productsPerPage = await Product.find()
     .skip((currentPageNumber - 1) * itemPerPage)
     .limit(itemPerPage);
 
   // const products = await Product.find();
+  console.log("products", products.length);
 
-  res.json({ products, paginationArray, currentPageNumber });
+  res.json({
+    products,
+    productsPerPage,
+    paginationArray,
+    currentPageNumber,
+  });
 };
 
 //********** GET /users/products/:id **********
@@ -93,8 +102,11 @@ export const deleteProduct = async (req, res) => {
     throw new Error("Product not found", { cause: 404 });
   }
 
+  // Delete all reviews associated with the deleted product
+  await Review.deleteMany({ product: deletedProduct._id });
+
   // res.status(204).end();//204 means no content to be send back (nice for delete or update)
-  res.status(200).json(deletedProduct);
+  res.status(200).json({ deletedProduct });
 };
 
 //********** PUT /users/products/:id **********
