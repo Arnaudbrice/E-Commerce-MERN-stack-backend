@@ -1,4 +1,7 @@
 const errorHandler = (error, req, res, next) => {
+  if (res.headersSent) {
+    return next(error);
+  }
   /*  const status = error.cause || 500;
   res
     .status(status)
