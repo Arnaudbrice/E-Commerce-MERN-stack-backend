@@ -53,20 +53,37 @@ export const createProduct = async (req, res) => {
 
 //********** GET /users/products **********
 export const getProducts = async (req, res) => {
-  const nunberOfProducts = await Product.countDocuments();
-  console.log("nunberOfProducts", nunberOfProducts);
-  const currentPageNumber = Number(req.query.page) || 1;
+  const { search, page } = req.query;
+
+  const currentPageNumber = Number(page) || 1;
 
   console.log("currentPageNumber", currentPageNumber);
 
-  const numberOfPages = Math.ceil(nunberOfProducts / itemPerPage);
+  let query = {};
+  if (search) {
+    // i means case insensitive
+    // search in title or description fields using regex with i option for case insensitive ( to count only documents where the search term is present in the title or description field )
+    query = {
+      $or: [
+        { title: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+      ],
+    };
+  }
+
+  const numberOfProducts = await Product.countDocuments(query);
+  console.log("numberOfProducts", numberOfProducts);
+
+  const numberOfPages = Math.ceil(numberOfProducts / itemPerPage);
 
   const paginationArray = getPagination(currentPageNumber, numberOfPages, 5);
   console.log("paginationArray", paginationArray);
 
-  const products = await Product.find();
+  // get all products that match the search query (if search term is provided), if not provided, get all products
+  const products = await Product.find(query);
 
-  const productsPerPage = await Product.find()
+  // get all products that match the search query (if search term is provided), if not provided, get all products
+  const productsPerPage = await Product.find(query)
     .skip((currentPageNumber - 1) * itemPerPage)
     .limit(itemPerPage);
 
