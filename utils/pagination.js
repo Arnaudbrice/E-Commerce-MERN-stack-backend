@@ -13,11 +13,14 @@ export const getPagination = (currentPage, lastPage, maxLinks = 5) => {
   if (lastPage <= maxLinks) {
     // return an array with length lastPage and map index of array to element with value index+1 . Element at index 0 has the value i+1=0+1=1 => array will be at the end [1,2,3,4,5]
     // lastPage= 4 => [1,2,3,4]
-    // return Array.from({ length: lastPage }, (_, i) => i + 1);
-    return Array(lastPage)
-      .keys()
-      .toArray()
-      .map((i) => i + 1);
+
+    //!note: this is a way to create an array of numbers from 1 to lastPage
+    // return Array.from({ length: lastPage }, (_, x) => x + 1);
+
+    /*   return [...Array(lastPage).keys()].map((x) => x + 1);
+     */
+
+    return [...Array(lastPage).keys()].map((x) => x + 1);
   }
 
   const pages = [];

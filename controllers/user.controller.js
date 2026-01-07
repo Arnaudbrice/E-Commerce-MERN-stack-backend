@@ -291,6 +291,22 @@ MongoDB's dot notation allows querying fields within array subdocuments. For exa
 export const getOrders = async (req, res) => {
   const userId = req.user._id;
 
+  // counts the number of orders for the current user
+  const nunberOfOrders = await Order.countDocuments({ userId });
+
+  console.log("nunberOfOrders", nunberOfOrders);
+
+  const currentPageNumber = Number(req.query.page) || 1;
+  const numberOfPages = Math.ceil(nunberOfOrders / itemPerPage);
+
+  const paginationArray = getPagination(currentPageNumber, numberOfPages, 5);
+  console.log("paginationArray", paginationArray);
+
+  const ordersForCurrentPage = await Order.find({ userId: userId })
+    .populate("products.productId")
+    .skip((currentPageNumber - 1) * itemPerPage)
+    .limit(itemPerPage);
+
   const orders = await Order.find({ userId: userId }).populate(
     "products.productId"
   ); //!populate every productId in the products array
@@ -306,9 +322,18 @@ export const getOrders = async (req, res) => {
     { id: order._id, products: order.products },
   ]);
 
+  const ordersProductsForCurrentPage = ordersForCurrentPage.map((order) => [
+    { id: order._id, products: order.products },
+  ]);
+
   console.log("ordersProducts", ordersProducts);
 
-  res.json(ordersProducts);
+  res.json({
+    ordersProducts,
+    ordersProductsForCurrentPage,
+    paginationArray,
+    currentPageNumber,
+  });
 };
 
 //********** POST /users/orders **********
@@ -395,109 +420,130 @@ export const createOrder = async (req, res) => {
 };
 
 //********** GET /users/orders/:id/invoice **********
-export const getOrderInvoice = async (req, res) => {
-  const { id } = req.params;
-  const order = await Order.findById(id);
-  let total = 0;
-  if (!order) {
-    throw new Error("Order not found", { cause: 404 });
-  }
-
-  const invoiceName = `invoice-${order._id}.pdf`;
-
-  //?  1) es6 process.cwd() returns the directory where you ran node your-script.js
-  //? 2) commonJS __dirname returns the directory of the current file (controller in this case)
-
-  // Tell the client the response body is PDF content
-  res.setHeader("Content-Type", "application/pdf");
-
-  //! to download directly instead of just opening the file in a new tab (to open it in the browser replace attachment with inline)-> no needed here because the frontend will handle the way to open or download the received pdf file
-  /*   res.setHeader("Content-Disposition", "attachment;filename=" + invoiceName); */
-  res.setHeader("Content-Disposition", "filename=" + invoiceName);
-
-  // create PDF document
-  const pdf = new PDFDocument({ size: "A4", margin: 50 });
-
-  pdf.pipe(res);
-
-  //! pdf configuration (add content to the PDF)
-  const fontPathTitle = path.join(process.cwd(), "font", "Outfit-Bold.ttf");
-  const fontPathText = path.join(process.cwd(), "font", "Outfit-Regular.ttf");
-
-  addHeader(pdf, fontPathText, order._id, order.createdAt);
-
-  // pdf.font(fontPath).fontSize(40).text("Invoice", { align: "center" });
-  pdf
-    .font(fontPathTitle)
-    .fontSize(20)
-    .text("Invoice", { align: "center", underline: true });
-  pdf.moveDown();
-  pdf.font(fontPathText).fontSize(12);
-
-  pdf.moveDown();
-  // separate products with a line
-  pdf
-    .moveTo(50, pdf.y) // start x, current y
-    .lineTo(550, pdf.y) // end x, same y
-    .strokeColor("#cccccc") // light gray
-    .lineWidth(1)
-    .stroke();
-  pdf.moveDown();
-
-  for (const product of order.products) {
-    /* pdf.image(product.image, {
-      width: 100,
-      height: 100,
-    });
- */
-    //! add new page if the current row height exceeds the page height(if the current page is full)
-    const rowHeight = 20;
-
-    if (pdf.y + rowHeight >= pdf.page.height - pdf.page.margins.bottom) {
-      pdf.addPage();
+export const getOrderInvoice = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const order = await Order.findById(id);
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
     }
-    // Try to render image if URL present
-    if (product.image) {
-      try {
-        // pdf.image needs image bytes as input,not url, so we need to fetch the image from the URL and convert it to bytes
 
-        //! without the option method "GET" specified, the default method is "GET"
-        const response = await fetch(product.image);
-        if (!response.ok)
-          throw new Error("Failed to fetch image", {
-            cause: response.status,
-          });
-        const arrayBuf = await response.arrayBuffer();
-        const imgBuffer = Buffer.from(arrayBuf);
+    let total = 0;
+    const invoiceName = `invoice-${order._id}.pdf`;
 
-        pdf.image(imgBuffer, {
-          width: 80,
-          height: 80,
-        });
-        pdf.moveDown();
-      } catch (err) {
-        console.error("Failed to load product image:", product.image, err);
-        pdf.fontSize(8).text("[Image unavailable]");
-        pdf.moveDown();
+    // Prepare PDF config before streaming
+    /*  const fontPathTitle = path.join(__dirname, "..", "font", "Outfit-Bold.ttf");
+    const fontPathText = path.join(
+      __dirname,
+      "..",
+      "font",
+      "Outfit-Regular.ttf"
+    ); */
+
+    //! pdf configuration (add content to the PDF)
+    const fontPathTitle = path.join(process.cwd(), "font", "Outfit-Bold.ttf");
+    const fontPathText = path.join(process.cwd(), "font", "Outfit-Regular.ttf");
+
+    // Tell the client the response body is PDF content
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", "filename=" + invoiceName);
+
+    const pdf = new PDFDocument({ size: "A4", margin: 50 });
+
+    // Avoid bubbling stream errors to the JSON error handler
+    pdf.on("error", (err) => {
+      console.error("PDF generation error:", err);
+      // End the response to avoid incomplete chunked encoding
+      if (!res.headersSent) {
+        res.status(500).end();
+      } else {
+        res.end();
       }
-    }
+    });
+
+    pdf.pipe(res);
+
+    addHeader(pdf, fontPathText, order._id, order.createdAt);
+
+    pdf
+      .font(fontPathTitle)
+      .fontSize(20)
+      .text("Invoice", { align: "center", underline: true });
+    pdf.moveDown();
+    pdf.font(fontPathText).fontSize(12);
 
     pdf.moveDown();
-    pdf.text(`Product: ${product.title} `, {
-      width: 410,
-      align: "left",
-    });
+    // separate products with a line
+    pdf
+      .moveTo(50, pdf.y) // start x, current y
+      .lineTo(550, pdf.y) // end x, same y
+      .strokeColor("#cccccc") // light gray
+      .lineWidth(1)
+      .stroke();
     pdf.moveDown();
-    pdf.text(`Quantity: ${product.quantity}`, {
-      width: 410,
-      align: "left",
-    });
-    pdf.moveDown();
-    pdf.text(`Price: ${parseFloat(product.price).toFixed(2) + " €"}`, {
-      width: 410,
-      align: "left",
-    });
-    pdf.moveDown();
+
+    for (const product of order.products) {
+      const rowHeight = 20;
+
+      if (pdf.y + rowHeight >= pdf.page.height - pdf.page.margins.bottom) {
+        pdf.addPage();
+      }
+
+      // Try to render image if URL present
+      if (product.image) {
+        try {
+          const response = await fetch(product.image);
+          if (!response.ok)
+            throw new Error(`Failed to fetch image ${response.status}`);
+          const arrayBuf = await response.arrayBuffer();
+          const imgBuffer = Buffer.from(arrayBuf);
+
+          pdf.image(imgBuffer, {
+            width: 80,
+            height: 80,
+          });
+          pdf.moveDown();
+        } catch (err) {
+          console.error("Failed to load product image:", product.image, err);
+          pdf.fontSize(8).text("[Image unavailable]");
+          pdf.moveDown();
+        }
+      }
+
+      pdf.moveDown();
+      pdf.text(`Product: ${product.title} `, {
+        width: 410,
+        align: "left",
+      });
+      pdf.moveDown();
+      pdf.text(`Quantity: ${product.quantity}`, {
+        width: 410,
+        align: "left",
+      });
+      pdf.moveDown();
+      pdf.text(`Price: ${parseFloat(product.price).toFixed(2) + " €"}`, {
+        width: 410,
+        align: "left",
+      });
+      pdf.moveDown();
+
+      // separate products with a line
+      pdf
+        .moveTo(50, pdf.y) // start x, current y
+        .lineTo(550, pdf.y) // end x, same y
+        .strokeColor("#cccccc") // light gray
+        .lineWidth(1)
+        .stroke();
+      total = total + parseFloat(product.price) * product.quantity;
+      pdf.moveDown();
+    }
+
+    pdf
+      .font(fontPathTitle)
+      .fontSize(20)
+      .text(`Total: ${total.toFixed(2)}${" €"}`, {
+        align: "center",
+      });
 
     // separate products with a line
     pdf
@@ -506,27 +552,17 @@ export const getOrderInvoice = async (req, res) => {
       .strokeColor("#cccccc") // light gray
       .lineWidth(1)
       .stroke();
-    total = total + parseFloat(product.price) * product.quantity;
-    pdf.moveDown();
+    addFooter(pdf, fontPathText);
+
+    pdf.end();
+  } catch (err) {
+    if (res.headersSent) {
+      console.error("Invoice generation failed after streaming started:", err);
+      res.end();
+      return;
+    }
+    next(err);
   }
-
-  pdf
-    .font(fontPathTitle)
-    .fontSize(20)
-    .text(`Total: ${total.toFixed(2)}${" €"}`, {
-      align: "center",
-    });
-
-  // separate products with a line
-  pdf
-    .moveTo(50, pdf.y) // start x, current y
-    .lineTo(550, pdf.y) // end x, same y
-    .strokeColor("#cccccc") // light gray
-    .lineWidth(1)
-    .stroke();
-  addFooter(pdf, fontPathText);
-
-  pdf.end();
 };
 
 function addHeader(doc, fontPath, invoiceId, invoiceDate) {
@@ -545,13 +581,13 @@ function addHeader(doc, fontPath, invoiceId, invoiceDate) {
   doc.fontSize(32).text("Order", {
     align: "right",
   });
+  const orderDateText =
+    invoiceDate ? new Date(invoiceDate).toLocaleString() : "Unknown";
+
   doc
     .fontSize(10)
     .text(`Order ID: ${invoiceId}`, { align: "right" })
-    .text(
-      `Order Date: ${new Date(invoiceDate.toString().split("GMT")[0]).toLocaleString()}`,
-      { align: "right" }
-    );
+    .text(`Order Date: ${orderDateText}`, { align: "right" });
   doc.moveDown(2);
 }
 
