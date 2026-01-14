@@ -5,6 +5,7 @@ import cors from "cors";
 import "./db/index.js"; //!connect to mongodb database
 
 import authRouter from "./routers/auth.router.js";
+import chatRouter from "./routers/chat.router.js";
 
 // import authenticate from "./middlewares/authenticate.js";
 import userRouter from "./routers/user.router.js";
@@ -58,7 +59,7 @@ app.use(express.json());
 
 app.use(
   express.urlencoded({
-    extended: false,
+    extended: true,//to be able to parse also nested objects
   })
 );
 app.use(cookieParser());
@@ -78,6 +79,8 @@ app.use("/auth", authRouter);
 
 // protected routes
 // app.use(authenticate);
+
+app.use("/chat", chatRouter);
 
 app.use("/users", userRouter);
 
