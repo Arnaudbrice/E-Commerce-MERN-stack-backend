@@ -24,14 +24,17 @@ import uploadFile from "../middlewares/uploadFile.js";
 import validateSchema from "../middlewares/validateSchema.js";
 import { productSchema } from "../schemas/product.schema.js";
 
+
 //! import authenticate for protect routes
 import authenticate from "../middlewares/authenticate.js";
+import isAdmin from "../middlewares/isAdmin.js";
 
 const userRouter = express.Router();
 
 //********** products **********
 userRouter.route("/products").get(getProducts).post(
   authenticate,
+  isAdmin,
   uploadFile,
   validateSchema(productSchema),
 

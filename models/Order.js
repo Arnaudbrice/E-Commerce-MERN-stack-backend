@@ -29,6 +29,7 @@ const orderSchema = new mongoose.Schema(
         price: {
           type: mongoose.Schema.Types.Decimal128,
           required: true,
+          get: v => parseFloat(v.toString()) // Automatically converts to number when reading
         },
         quantity: {
           type: Number,
@@ -37,6 +38,7 @@ const orderSchema = new mongoose.Schema(
       },
     ],
   },
+  { toJSON: { getters: true }},// When this document is converted to JSON (for the API or for the frontend), please ensure that all `get` functions are executed.
   { timestamps: true } // add createdAt and updatedAt fields
 );
 
