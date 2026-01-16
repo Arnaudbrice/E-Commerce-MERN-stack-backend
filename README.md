@@ -61,6 +61,8 @@ FRONTEND_BASE_URL=http://localhost:5173
 STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
 STRIPE_SECRET_KEY=your_stripe_secret_key
 
+CHAT_LANGUAGE=auto
+
 PORT=3000
 ```
 
@@ -109,6 +111,48 @@ Orders:
 - `GET /users/orders` (auth, supports `?page=`)
 - `POST /users/orders` (auth)
 - `GET /users/orders/:id/invoice` (auth, returns PDF)
+
+## Chat assistant flow
+Endpoint:
+- `POST /chat/message`
+
+How it works (high level):
+- Intent detection handles greetings, thanks, and support requests with short replies.
+- General questions are answered with the LLM (if configured), then the bot can offer related products.
+- Product requests use token scoring (title/description/category) with category/type filters and top-rated fallback.
+- Follow-up questions reuse the last shown product to keep context.
+- Product responses return markdown cards with clickable images for the frontend.
+
+Notes:
+- Per-user context is stored in memory (not persisted across server restarts).
+- Set `FRONTEND_BASE_URL` so product links point to the right UI.
+- Set `GROQ_API_KEY` to enable LLM answers for general questions and product follow-ups.
+- Set `CHAT_LANGUAGE` to `en` or `de` to force a language (or leave unset for auto).
+
+Example request/response:
+```http
+POST /chat/message
+Content-Type: application/json
+Cookie: token=...
+
+{ "message": "Is a laptop an SSD?" }
+```
+```json
+{
+  "botResponse": "No. A laptop is a computer, while an SSD is a storage component. Would you like me to show related products?"
+}
+```
+
+Example product-card response:
+```json
+{
+  "botResponse": "Here are the products I found.\n\n### Product matches\n\n- **Rain Jacket Women Windbreaker Striped Climbing Raincoats**\n  - Price: €39.99\n  - Category: Women's Clothing\n  - Image: [![Rain Jacket Women Windbreaker Striped Climbing Raincoats](https://res.cloudinary.com/.../image.png)](http://localhost:5173/product/6941bdd9d5d13ab4a267b6b6)\n"
+}
+```
+
+Frontend rendering notes:
+- The frontend renders `botResponse` with markdown to produce clickable images.
+- Image links should point to `${FRONTEND_BASE_URL}/product/:id` so the UI can route to the product page.
 
 ## Project structure
 ```
