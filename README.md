@@ -61,7 +61,14 @@ FRONTEND_BASE_URL=http://localhost:5173
 STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
 STRIPE_SECRET_KEY=your_stripe_secret_key
 
-CHAT_LANGUAGE=auto
+GROQ_API_KEY=your_groq_api_key
+GROQ_MODEL=llama-3.1-8b-instant
+
+CHAT_RETRIEVE_LIMIT=120
+CHAT_RERANK_LIMIT=30
+CHAT_K=3
+CHAT_BESTSELLER_LIMIT=6
+CHAT_TOKEN_PREFIX=4
 
 PORT=3000
 ```
@@ -112,22 +119,27 @@ Orders:
 - `POST /users/orders` (auth)
 - `GET /users/orders/:id/invoice` (auth, returns PDF)
 
-## Chat assistant flow
+## Chat assistant flow (chat.controller.js)
 Endpoint:
 - `POST /chat/message`
 
 How it works (high level):
-- Intent detection handles greetings, thanks, and support requests with short replies.
-- General questions are answered with the LLM (if configured), then the bot can offer related products.
-- Product requests use token scoring (title/description/category) with category/type filters and top-rated fallback.
-- Follow-up questions reuse the last shown product to keep context.
-- Product responses return markdown cards with clickable images for the frontend.
+- Detects language with a simple EN/DE heuristic.
+- Optionally fixes typos with the LLM (if `GROQ_API_KEY` is set).
+- Builds a plan with the LLM (query, price range, categories, k); falls back to a simple plan if LLM is not available.
+- Applies recipient heuristics for gift queries (son/daughter/men/women/kids).
+- If the user asks for a gift but no recipient is clear, returns one short follow-up question.
+- For generic "recommend me" messages, returns bestsellers (sorted by rating then newest).
+- Retrieves candidates from MongoDB using `$text` search (requires a text index); if no hits, falls back to a regex search on title/description/category with plural/prefix tokens.
+- If no matches, falls back to bestsellers, otherwise asks for category/budget.
+- If LLM is available, reranks candidates and can ask one clarifying question.
+- Returns `botResponse` as markdown and a `products` array for the UI.
 
 Notes:
-- Per-user context is stored in memory (not persisted across server restarts).
 - Set `FRONTEND_BASE_URL` so product links point to the right UI.
-- Set `GROQ_API_KEY` to enable LLM answers for general questions and product follow-ups.
-- Set `CHAT_LANGUAGE` to `en` or `de` to force a language (or leave unset for auto).
+- Recommended text index:
+  `ProductSchema.index({ title: "text", description: "text", category: "text" })`
+- Bestsellers are defined as highest `averageRating` then newest `createdAt`.
 
 Example request/response:
 ```http
@@ -139,20 +151,21 @@ Cookie: token=...
 ```
 ```json
 {
-  "botResponse": "No. A laptop is a computer, while an SSD is a storage component. Would you like me to show related products?"
+  "botResponse": "Here are a few good matches.\n\n### Recommendations\n\n- **Example Product**\n  - Price: €49.99\n  - Category: Electronics\n  - Image: [![Example Product](https://.../image.png)](http://localhost:5173/product/123)\n",
+  "products": [
+    {
+      "_id": "123",
+      "title": "Example Product",
+      "price": 49.99,
+      "category": "Electronics",
+      "image": "https://.../image.png"
+    }
+  ]
 }
 ```
-
-Example product-card response:
-```json
-{
-  "botResponse": "Here are the products I found.\n\n### Product matches\n\n- **Rain Jacket Women Windbreaker Striped Climbing Raincoats**\n  - Price: €39.99\n  - Category: Women's Clothing\n  - Image: [![Rain Jacket Women Windbreaker Striped Climbing Raincoats](https://res.cloudinary.com/.../image.png)](http://localhost:5173/product/6941bdd9d5d13ab4a267b6b6)\n"
-}
-```
-
 Frontend rendering notes:
-- The frontend renders `botResponse` with markdown to produce clickable images.
-- Image links should point to `${FRONTEND_BASE_URL}/product/:id` so the UI can route to the product page.
+- The frontend renders `botResponse` as markdown.
+- The image line is link-wrapped, so clicking the image opens the product page.
 
 ## Project structure
 ```
