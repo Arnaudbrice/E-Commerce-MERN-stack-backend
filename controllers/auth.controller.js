@@ -217,6 +217,53 @@ export const resetPassword = async (req, res) => {
 
   res.status(201).json({ message: "Password reset successfully" });
 };
+
+/****************************************
+ *           Profile
+ ****************************************/
+//********** Put /auth/profile **********
+
+export const createProfile = async (req, res) => {
+  const userId = req.user._id;
+
+  const {
+    firstName,
+    lastName,
+    phone,
+    streetAddress,
+    city,
+    state,
+    zipCode,
+    country,
+  } = req.body;
+  const user = await User.findByIdAndUpdate(
+    userId,
+    {
+      $set: {
+        firstName,
+        lastName,
+        phone,
+        streetAddress,
+        city,
+        state,
+        zipCode,
+        country,
+      },
+    },
+    { new: true, runValidators: true }
+  ).lean(); //to get a plain object instead of a mongoose document, so that we can delete the password property from the user object before sending the response back to the client
+
+  if (!user) {
+    // user not found
+    throw new Error("User Not Found", { cause: 404 });
+  }
+  // remove password
+  // const userWithoutPassword = user.toObject();
+  delete user.password;
+
+  res.status(200).json({ user });
+};
+
 /****************************************
  *           auth me
  ****************************************/

@@ -16,11 +16,19 @@ const userSchema = new mongoose.Schema({
     ref: "Cart",
     required: true,
   },
-  role:{
-    type:String,
-    enum:["user","admin"],
-    default:"user"
+  role: {
+    type: String,
+    enum: ["user", "admin"],
+    default: "user",
   },
+  firstName: String,
+  lastName: String,
+  phone: String,
+  streetAddress: String,
+  city: String,
+  state: String,
+  zipCode: String,
+  country: String,
   resetToken: String,
   resetTokenExpiration: Date,
 });

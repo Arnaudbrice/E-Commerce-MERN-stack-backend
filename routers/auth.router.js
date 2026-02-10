@@ -7,6 +7,7 @@ import {
   sendMail,
   getResetPassword,
   resetPassword,
+  createProfile,
 } from "../controllers/auth.controller.js";
 import authenticate from "../middlewares/authenticate.js";
 import validateSchema from "../middlewares/validateSchema.js";
@@ -35,6 +36,8 @@ authRouter
 //********** logout **********
 authRouter.delete("/logout", logout);
 
+//********** profile **********
+authRouter.put("/profile", authenticate, createProfile);
 //********** me **********
 authRouter.get("/me", authenticate, getMe);
 
