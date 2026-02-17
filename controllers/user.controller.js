@@ -304,17 +304,43 @@ MongoDB's dot notation allows querying fields within array subdocuments. For exa
  *           order
  ****************************************/
 
+//********** GET users/admin/orders **********
+export const getAllOrders = async (req, res) => {
+  // Optionally: Add admin authentication/authorization check here
+
+  const numberOfOrders = await Order.countDocuments();
+
+  const currentPageNumber = Number(req.query.page) || 1;
+  const itemPerPage = 10;
+  const numberOfPages = Math.ceil(numberOfOrders / itemPerPage);
+
+  const paginationArray = getPagination(currentPageNumber, numberOfPages, 5);
+
+  const ordersForCurrentPage = await Order.find()
+    .populate("products.productId")
+    .populate("userId", "email") // Optionally populate user info
+    .skip((currentPageNumber - 1) * itemPerPage)
+    .limit(itemPerPage);
+
+  res.status(200).json({
+    orders: ordersForCurrentPage,
+    paginationArray,
+    currentPageNumber,
+    numberOfPages,
+  });
+};
+
 //********** GET /users/orders **********
 export const getOrders = async (req, res) => {
   const userId = req.user._id;
 
   // counts the number of orders for the current user
-  const nunberOfOrders = await Order.countDocuments({ userId });
+  const numberOfOrders = await Order.countDocuments({ userId });
 
-  console.log("nunberOfOrders", nunberOfOrders);
+  console.log("numberOfOrders", numberOfOrders);
 
   const currentPageNumber = Number(req.query.page) || 1;
-  const numberOfPages = Math.ceil(nunberOfOrders / itemPerPage);
+  const numberOfPages = Math.ceil(numberOfOrders / itemPerPage);
 
   const paginationArray = getPagination(currentPageNumber, numberOfPages, 5);
   console.log("paginationArray", paginationArray);
@@ -340,7 +366,12 @@ export const getOrders = async (req, res) => {
   ]);
 
   const ordersProductsForCurrentPage = ordersForCurrentPage.map((order) => [
-    { id: order._id, products: order.products },
+    {
+      id: order._id,
+      products: order.products,
+      status: order.status,
+      createdAt: order.createdAt,
+    },
   ]);
 
   console.log("ordersProducts", ordersProducts);
@@ -358,6 +389,7 @@ export const createOrder = async (req, res) => {
   const userId = req.user._id;
 
   console.log("userId in createOrder", userId);
+  const { shippingAddress } = req.body;
 
   // !note: after populating cartId, cartId becomes a Cart document that can be save using user.cartId.save()
 
@@ -404,6 +436,7 @@ export const createOrder = async (req, res) => {
   const order = await Order.create({
     userId: userId,
     products: cartItems, // cartItems is a copy of the cart's products at order time
+    shippingAddress,
   });
 
   console.log(chalk.green("Order created successfully:"), order);
