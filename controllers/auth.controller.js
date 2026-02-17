@@ -5,6 +5,7 @@ import sgMail from "@sendgrid/mail";
 import nodemailer from "nodemailer";
 // nodejs built-in crypto module
 import crypto from "crypto";
+import mongoose from "mongoose";
 
 //********** POST /auth/register **********
 
@@ -223,10 +224,11 @@ export const resetPassword = async (req, res) => {
  ****************************************/
 //********** Put /auth/profile **********
 
-export const createProfile = async (req, res) => {
+export const updateProfile = async (req, res) => {
   const userId = req.user._id;
 
   const {
+    label,
     firstName,
     lastName,
     phone,
@@ -236,32 +238,111 @@ export const createProfile = async (req, res) => {
     zipCode,
     country,
   } = req.body;
-  const user = await User.findByIdAndUpdate(
-    userId,
+
+  //1- try to update the existing home address if the label is "Home" and if the user already has a home address, otherwise create a new address
+
+  // !NOTE:$ allows US to update the fields of just that matched address.
+  let updatedUser = await User.findOneAndUpdate(
+    { _id: userId, "addresses.label": "Home" },
     {
       $set: {
-        firstName,
-        lastName,
-        phone,
-        streetAddress,
-        city,
-        state,
-        zipCode,
-        country,
+        "addresses.$.firstName": firstName,
+        "addresses.$.lastName": lastName,
+        "addresses.$.phone": phone,
+        "addresses.$.streetAddress": streetAddress,
+        "addresses.$.city": city,
+        "addresses.$.state": state,
+        "addresses.$.zipCode": zipCode,
+        "addresses.$.country": country,
       },
     },
-    { new: true, runValidators: true }
-  ).lean(); //to get a plain object instead of a mongoose document, so that we can delete the password property from the user object before sending the response back to the client
+    { new: true }
+  ).lean();
 
-  if (!user) {
+  //2-  If not found, push new "Home" address
+  if (!updatedUser) {
+    // Generate ObjectId for the new address
+    const addressId = new mongoose.Types.ObjectId();
+    const newAddress = {
+      _id: addressId,
+      label: label,
+      firstName,
+      lastName,
+      phone,
+      streetAddress,
+      city,
+      state,
+      zipCode,
+      country,
+    };
+
+    updatedUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        $push: { addresses: newAddress },
+        $set: { defaultAddress: addressId },
+      },
+      { new: true, runValidators: true }
+    ).lean(); //to get a plain object instead of a mongoose document, so that we can delete the password property from the user object before sending the response back to the client
+  } else {
+    //update the default address to the home address if the user already has a home address
+    const addressId = updatedUser.addresses.find(
+      (address) => address.label === "Home"
+    )._id;
+
+    updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { $set: { defaultAddress: addressId } },
+      { new: true, runValidators: true }
+    ).lean(); //to get a plain object instead of a mongoose document, so that we can delete the password property from the user object before sending the response back to the client
+  }
+
+  if (!updatedUser) {
     // user not found
     throw new Error("User Not Found", { cause: 404 });
   }
+
   // remove password
   // const userWithoutPassword = user.toObject();
-  delete user.password;
+  delete updatedUser.password;
 
-  res.status(200).json({ user });
+  res.status(200).json({ user: updatedUser });
+};
+
+export const addShippingAddress = async (req, res) => {
+  const userId = req.user._id;
+
+  const { firstName, lastName, streetAddress, zipCode, city, state, country } =
+    req.body;
+
+  const newAddress = {
+    firstName,
+    lastName,
+    streetAddress,
+    zipCode,
+    city,
+    state,
+    country,
+  };
+
+  const updatedUser = await User.findByIdAndUpdate(
+    userId,
+    {
+      $push: { addresses: newAddress },
+    },
+    {
+      new: true,
+      runValidators: true,
+    }
+  ).lean();
+
+  if (!updatedUser) {
+    throw new Error("User Not Found", { cause: 404 });
+  }
+
+  delete updatedUser.password;
+
+  res.status(200).json({ user: updatedUser });
 };
 
 /****************************************

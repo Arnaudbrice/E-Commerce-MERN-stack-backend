@@ -19,11 +19,11 @@ import {
   getFavoriteProducts,
   updateProductRating,
   getProduct,
+  getAllOrders,
 } from "../controllers/user.controller.js";
 import uploadFile from "../middlewares/uploadFile.js";
 import validateSchema from "../middlewares/validateSchema.js";
 import { productSchema } from "../schemas/product.schema.js";
-
 
 //! import authenticate for protect routes
 import authenticate from "../middlewares/authenticate.js";
@@ -98,6 +98,8 @@ userRouter
   .route("/orders")
   .get(authenticate, getOrders)
   .post(authenticate, createOrder);
+
+userRouter.route("/admin/orders").get(authenticate, isAdmin, getAllOrders);
 
 userRouter.route("/orders/:id/invoice").get(authenticate, getOrderInvoice);
 

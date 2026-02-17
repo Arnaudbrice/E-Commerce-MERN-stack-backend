@@ -8,6 +8,7 @@ const orderSchema = new mongoose.Schema(
       required: true,
     },
     products: [
+      //array of products in the order, each with its own productId, image, title, description, price, and quantity.
       {
         productId: {
           type: mongoose.Schema.Types.ObjectId,
@@ -29,7 +30,7 @@ const orderSchema = new mongoose.Schema(
         price: {
           type: mongoose.Schema.Types.Decimal128,
           required: true,
-          get: v => parseFloat(v.toString()) // Automatically converts to number when reading
+          get: (v) => parseFloat(v.toString()), // Automatically converts to number when reading
         },
         quantity: {
           type: Number,
@@ -37,9 +38,26 @@ const orderSchema = new mongoose.Schema(
         },
       },
     ],
+    shippingAddress: {
+      firstName: { type: String, required: true },
+      lastName: { type: String, required: true },
+
+      streetAddress: { type: String, required: true },
+      zipCode: { type: String, required: true },
+      city: { type: String, required: true },
+      state: { type: String },
+
+      country: { type: String, required: true },
+    },
+    status: {
+      type: String,
+      enum: ["pending", "shipped", "delivered", "cancelled"],
+      default: "pending",
+    },
   },
-  { toJSON: { getters: true }},// When this document is converted to JSON (for the API or for the frontend), please ensure that all `get` functions are executed.
-  { timestamps: true } // add createdAt and updatedAt fields
+  { toJSON: { getters: true }, timestamps: true } // When this document is converted to JSON (for the API or for the frontend), please ensure that all `get` functions are executed.
+  // { timestamps: true }
+  // add createdAt and updatedAt fields
 );
 
 const Order = mongoose.model("Order", orderSchema);

@@ -1,5 +1,17 @@
 import mongoose from "mongoose";
 
+const addressSchema = new mongoose.Schema({
+  label: { type: String, default: "shippingAddress" }, // e.g. Home, Work, etc.
+  firstName: { type: String },
+  lastName: String,
+  streetAddress: { type: String, required: true },
+  zipCode: { type: String, required: true },
+  city: { type: String, required: true },
+  state: { type: String },
+  country: { type: String, required: true },
+  phone: { type: String },
+});
+
 const userSchema = new mongoose.Schema({
   email: {
     type: String,
@@ -21,14 +33,16 @@ const userSchema = new mongoose.Schema({
     enum: ["user", "admin"],
     default: "user",
   },
-  firstName: String,
+  /*  firstName: String,
   lastName: String,
   phone: String,
   streetAddress: String,
   city: String,
   state: String,
   zipCode: String,
-  country: String,
+  country: String, */
+  addresses: [addressSchema],
+  defaultAddress: { type: mongoose.Schema.Types.ObjectId, ref: "Address" }, //address id
   resetToken: String,
   resetTokenExpiration: Date,
 });
