@@ -20,6 +20,7 @@ import {
   updateProductRating,
   getProduct,
   getAllOrders,
+  updateOrderStatus,
 } from "../controllers/user.controller.js";
 import uploadFile from "../middlewares/uploadFile.js";
 import validateSchema from "../middlewares/validateSchema.js";
@@ -102,5 +103,10 @@ userRouter
 userRouter.route("/admin/orders").get(authenticate, isAdmin, getAllOrders);
 
 userRouter.route("/orders/:id/invoice").get(authenticate, getOrderInvoice);
+
+// update order status (admin only)
+userRouter
+  .route("/admin/orders/:id")
+  .put(authenticate, isAdmin, updateOrderStatus);
 
 export default userRouter;

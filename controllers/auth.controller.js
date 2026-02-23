@@ -66,6 +66,7 @@ export const login = async (req, res) => {
   const payload = {
     id: user._id,
     email: user.email,
+    role: user.role,
   };
 
   // generate a JWT token based on the defined payload
@@ -355,7 +356,7 @@ export const getMe = async (req, res) => {
   // we have access to the user object in the request object
   const { _id } = req.user;
 
-  const user = await User.findById(_id).lean();
+  const user = await User.findById(_id).populate("addresses").lean();
   if (!user) {
     throw new Error("User Not Found", { cause: 404 });
   }

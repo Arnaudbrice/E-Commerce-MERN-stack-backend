@@ -11,7 +11,7 @@ const authenticate = async (req, res, next) => {
 
   // checks if the token is valid and decodes it
   const payload = jwt.verify(token, process.env.JWT_SECRET);
-  req.user = { _id: payload.id, email: payload.email };
+  req.user = { _id: payload.id, email: payload.email, role: payload.role };
 
   next();
 };

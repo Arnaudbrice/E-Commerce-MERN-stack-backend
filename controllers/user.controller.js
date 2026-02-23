@@ -318,16 +318,45 @@ export const getAllOrders = async (req, res) => {
 
   const ordersForCurrentPage = await Order.find()
     .populate("products.productId")
-    .populate("userId", "email") // Optionally populate user info
+    // .populate("userId", "email firstName lastname defaultAddress")
+    .populate({
+      path: "userId",
+      select: "email firstName lastName defaultAddress",
+      populate: {
+        path: "defaultAddress", // if it's a reference
+        select:
+          "firstName lastName streetAddress  zipCode city state country phone",
+      },
+    })
     .skip((currentPageNumber - 1) * itemPerPage)
     .limit(itemPerPage);
 
   res.status(200).json({
-    orders: ordersForCurrentPage,
-    paginationArray,
-    currentPageNumber,
-    numberOfPages,
+    dashboardOrdersForCurrentPage: ordersForCurrentPage,
+    dashboardPaginationArray: paginationArray,
+    dashboardCurrentPageNumber: currentPageNumber,
+    dashboardNumberOfPages: numberOfPages,
   });
+};
+
+//********** PUT /users/admin/orders/:id **********
+export const updateOrderStatus = async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  console.log("id", id);
+
+  const order = await Order.findByIdAndUpdate(
+    id,
+    { $set: { status } },
+    { new: true, runValidators: true }
+  );
+  if (!order) {
+    throw new Error("Order not found", { cause: 404 });
+  }
+
+  console.log(chalk.green(order + " updated successfully"));
+  res.status(200).json({ message: `Order status updated successfully` });
 };
 
 //********** GET /users/orders **********
@@ -361,18 +390,21 @@ export const getOrders = async (req, res) => {
   }
 
   // array of populated products arrays
-  const ordersProducts = orders.map((order) => [
-    { id: order._id, products: order.products },
-  ]);
+  const ordersProducts = orders.map((order) => ({
+    _id: order._id,
+    products: order.products,
+    userId: order.userId,
+    shippingAddress: order.shippingAddress,
+  }));
 
-  const ordersProductsForCurrentPage = ordersForCurrentPage.map((order) => [
-    {
-      id: order._id,
-      products: order.products,
-      status: order.status,
-      createdAt: order.createdAt,
-    },
-  ]);
+  const ordersProductsForCurrentPage = ordersForCurrentPage.map((order) => ({
+    _id: order._id,
+    products: order.products,
+    status: order.status,
+    createdAt: order.createdAt,
+    shippingAddress: order.shippingAddress,
+    userId: order.userId,
+  }));
 
   console.log("ordersProducts", ordersProducts);
 

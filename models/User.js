@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const addressSchema = new mongoose.Schema({
+/* const addressSchema = new mongoose.Schema({
   label: { type: String, default: "shippingAddress" }, // e.g. Home, Work, etc.
   firstName: { type: String },
   lastName: String,
@@ -10,7 +10,8 @@ const addressSchema = new mongoose.Schema({
   state: { type: String },
   country: { type: String, required: true },
   phone: { type: String },
-});
+}); */
+import Address from "./Address.js"; // Import the Address model to ensure it's registered with Mongoose
 
 const userSchema = new mongoose.Schema({
   email: {
@@ -41,8 +42,10 @@ const userSchema = new mongoose.Schema({
   state: String,
   zipCode: String,
   country: String, */
-  addresses: [addressSchema],
-  defaultAddress: { type: mongoose.Schema.Types.ObjectId, ref: "Address" }, //address id
+  addresses: {
+    type: [{ type: mongoose.Schema.Types.ObjectId, ref: "Address" }],
+  },
+  defaultAddress: { type: mongoose.Schema.Types.ObjectId, ref: "Address" }, //address ID
   resetToken: String,
   resetTokenExpiration: Date,
 });
