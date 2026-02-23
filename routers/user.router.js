@@ -20,6 +20,7 @@ import {
   updateProductRating,
   getProduct,
   getAllOrders,
+  updateOrderStatus,
 } from "../controllers/user.controller.js";
 import uploadFile from "../middlewares/uploadFile.js";
 import validateSchema from "../middlewares/validateSchema.js";
@@ -100,6 +101,10 @@ userRouter
   .post(authenticate, createOrder);
 
 userRouter.route("/admin/orders").get(authenticate, isAdmin, getAllOrders);
+
+userRouter
+  .route("/admin/orders/:id")
+  .put(authenticate, isAdmin, updateOrderStatus);
 
 userRouter.route("/orders/:id/invoice").get(authenticate, getOrderInvoice);
 

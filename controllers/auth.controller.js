@@ -70,7 +70,7 @@ export const login = async (req, res) => {
 
   // generate a JWT token based on the defined payload
   const token = jwt.sign(payload, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_REXPIRES_IN + "d",
+    expiresIn: process.env.JWT_EXPIRES_IN + "d",
   });
 
   // convert the user document to an object to be able to delete the password property
@@ -355,7 +355,11 @@ export const getMe = async (req, res) => {
   // we have access to the user object in the request object
   const { _id } = req.user;
 
-  const user = await User.findById(_id).lean();
+  // populate addresses and defaultAddress
+  const user = await User.findById(_id)
+    .populate("addresses")
+    .populate("defaultAddress")
+    .lean();
   if (!user) {
     throw new Error("User Not Found", { cause: 404 });
   }

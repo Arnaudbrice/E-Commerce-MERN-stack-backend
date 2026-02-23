@@ -1,6 +1,8 @@
 import mongoose from "mongoose";
 
-const addressSchema = new mongoose.Schema({
+import address from "./Address.js";
+
+/* const addressSchema = new mongoose.Schema({
   label: { type: String, default: "shippingAddress" }, // e.g. Home, Work, etc.
   firstName: { type: String },
   lastName: String,
@@ -11,7 +13,7 @@ const addressSchema = new mongoose.Schema({
   country: { type: String, required: true },
   phone: { type: String },
 });
-
+ */
 const userSchema = new mongoose.Schema({
   email: {
     type: String,
@@ -41,7 +43,7 @@ const userSchema = new mongoose.Schema({
   state: String,
   zipCode: String,
   country: String, */
-  addresses: [addressSchema],
+  addresses: [{ type: mongoose.Schema.Types.ObjectId, ref: "Address" }],
   defaultAddress: { type: mongoose.Schema.Types.ObjectId, ref: "Address" }, //address id
   resetToken: String,
   resetTokenExpiration: Date,
