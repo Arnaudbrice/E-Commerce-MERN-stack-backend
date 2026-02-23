@@ -390,18 +390,21 @@ export const getOrders = async (req, res) => {
   }
 
   // array of populated products arrays
-  const ordersProducts = orders.map((order) => [
-    { id: order._id, products: order.products },
-  ]);
+  const ordersProducts = orders.map((order) => ({
+    _id: order._id,
+    products: order.products,
+    userId: order.userId,
+    shippingAddress: order.shippingAddress,
+  }));
 
-  const ordersProductsForCurrentPage = ordersForCurrentPage.map((order) => [
-    {
-      id: order._id,
-      products: order.products,
-      status: order.status,
-      createdAt: order.createdAt,
-    },
-  ]);
+  const ordersProductsForCurrentPage = ordersForCurrentPage.map((order) => ({
+    _id: order._id,
+    products: order.products,
+    status: order.status,
+    createdAt: order.createdAt,
+    shippingAddress: order.shippingAddress,
+    userId: order.userId,
+  }));
 
   console.log("ordersProducts", ordersProducts);
 
