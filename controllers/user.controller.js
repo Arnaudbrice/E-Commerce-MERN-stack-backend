@@ -316,12 +316,24 @@ export const getAllOrders = async (req, res) => {
 
   const paginationArray = getPagination(currentPageNumber, numberOfPages, 5);
 
+  /*   const ordersForCurrentPage = await Order.find()
+    .populate("products.productId")
+    .populate("userId", "email defaultAddress") // Optionally populate user info
+    .skip((currentPageNumber - 1) * itemPerPage)
+    .limit(itemPerPage);
+ */
+
   const ordersForCurrentPage = await Order.find()
     .populate("products.productId")
-    .populate("userId", "email") // Optionally populate user info
+    .populate({
+      path: "userId",
+      select: "email defaultAddress",
+      populate: { path: "defaultAddress" },
+    }) // Optionally populate user info
     .skip((currentPageNumber - 1) * itemPerPage)
     .limit(itemPerPage);
 
+  console.log("ordersForCurrentPage", ordersForCurrentPage);
   res.status(200).json({
     orders: ordersForCurrentPage,
     paginationArray,
@@ -365,14 +377,16 @@ export const getOrders = async (req, res) => {
     { id: order._id, products: order.products },
   ]);
 
-  const ordersProductsForCurrentPage = ordersForCurrentPage.map((order) => [
-    {
+  const ordersProductsForCurrentPage = ordersForCurrentPage.map((order) => {
+    return {
       id: order._id,
       products: order.products,
       status: order.status,
       createdAt: order.createdAt,
-    },
-  ]);
+      shippingAddress: order.shippingAddress,
+      userId: order.userId,
+    };
+  });
 
   console.log("ordersProducts", ordersProducts);
 
@@ -381,6 +395,29 @@ export const getOrders = async (req, res) => {
     ordersProductsForCurrentPage,
     paginationArray,
     currentPageNumber,
+  });
+};
+
+export const updateOrderStatus = async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  console.log("id", id);
+  console.log("status", status);
+
+  const updatedOrder = await Order.findByIdAndUpdate(
+    id,
+    { status },
+    { new: true, runValidators: true }
+  );
+
+  if (!updatedOrder) {
+    throw new Error("Order not found", { cause: 404 });
+  }
+
+  res.status(200).json({
+    message: "Order status updated successfully",
+    status: updatedOrder.status,
   });
 };
 

@@ -38,6 +38,14 @@ const corsOptions = {
       return callback(null, true); // allow requests with no origin (like mobile apps or curl requests)
     }
 
+    // Allow any localhost origin in development
+    if (
+      process.env.NODE_ENV === "development" &&
+      origin.startsWith("http://localhost")
+    ) {
+      return callback(null, true);
+    }
+
     // Allow requests from the specified origins
     if (!allowOrigins.includes(origin)) {
       const msg =
@@ -59,7 +67,7 @@ app.use(express.json());
 
 app.use(
   express.urlencoded({
-    extended: true,//to be able to parse also nested objects
+    extended: true, //to be able to parse also nested objects
   })
 );
 app.use(cookieParser());
