@@ -6,6 +6,7 @@ import nodemailer from "nodemailer";
 // nodejs built-in crypto module
 import crypto from "crypto";
 import mongoose from "mongoose";
+import Address from "../models/Address.js";
 
 //********** POST /auth/register **********
 
@@ -231,6 +232,7 @@ export const updateProfile = async (req, res) => {
     label,
     firstName,
     lastName,
+    companyName,
     phone,
     streetAddress,
     city,
@@ -239,76 +241,67 @@ export const updateProfile = async (req, res) => {
     country,
   } = req.body;
 
+  //  Get the user document (with addresses array)
+  let user = await User.findById(userId)
+    .populate("addresses")
+    .populate("defaultAddress");
+
   //1- try to update the existing home address if the label is "Home" and if the user already has a home address, otherwise create a new address
 
   // !NOTE:$ allows US to update the fields of just that matched address.
-  let updatedUser = await User.findOneAndUpdate(
-    { _id: userId, "addresses.label": "Home" },
-    {
-      $set: {
-        "addresses.$.firstName": firstName,
-        "addresses.$.lastName": lastName,
-        "addresses.$.phone": phone,
-        "addresses.$.streetAddress": streetAddress,
-        "addresses.$.city": city,
-        "addresses.$.state": state,
-        "addresses.$.zipCode": zipCode,
-        "addresses.$.country": country,
-      },
-    },
-    { new: true }
-  ).lean();
+  // Find the Address document for the user with label "Home" among user's addresses
+  const address = await Address.findOne({
+    _id: { $in: user.addresses },
+    label: "Home",
+  });
+  // Update or create the address
+  if (address) {
+    address.firstName = firstName;
+    address.lastName = lastName;
+    address.companyName = companyName;
+    address.phone = phone;
+    address.streetAddress = streetAddress;
+    address.city = city;
+    address.state = state;
+    address.zipCode = zipCode;
+    address.country = country;
+    await address.save();
+  } else {
+    // If not found, create a new Address and push its _id to the user
 
-  //2-  If not found, push new "Home" address
-  if (!updatedUser) {
-    // Generate ObjectId for the new address
-    const addressId = new mongoose.Types.ObjectId();
-    const newAddress = {
-      _id: addressId,
-      label: label,
+    const newAddress = await Address.create({
+      label,
       firstName,
       lastName,
+      companyName,
       phone,
       streetAddress,
       city,
       state,
       zipCode,
       country,
-    };
-
-    updatedUser = await User.findByIdAndUpdate(
+    });
+    user = await User.findByIdAndUpdate(
       userId,
       {
-        $push: { addresses: newAddress },
-        $set: { defaultAddress: addressId },
+        $push: { addresses: newAddress._id },
+        $set: { defaultAddress: newAddress._id },
       },
       { new: true, runValidators: true }
     ).lean(); //to get a plain object instead of a mongoose document, so that we can delete the password property from the user object before sending the response back to the client
-  } else {
-    //update the default address to the home address if the user already has a home address
-    const addressId = updatedUser.addresses.find(
-      (address) => address.label === "Home"
-    )._id;
-
-    updatedUser = await User.findByIdAndUpdate(
-      userId,
-      { $set: { defaultAddress: addressId } },
-      { new: true, runValidators: true }
-    ).lean(); //to get a plain object instead of a mongoose document, so that we can delete the password property from the user object before sending the response back to the client
+    if (!user) {
+      // user not found
+      throw new Error("User Not Found", { cause: 404 });
+    }
+    // remove password
+    // const userWithoutPassword = user.toObject();
+    delete user.password;
   }
 
-  if (!updatedUser) {
-    // user not found
-    throw new Error("User Not Found", { cause: 404 });
-  }
-
-  // remove password
-  // const userWithoutPassword = user.toObject();
-  delete updatedUser.password;
-
-  res.status(200).json({ user: updatedUser });
+  res.status(200).json({ user });
 };
 
+//********** POST /auth/shippingAddress **********
 export const addShippingAddress = async (req, res) => {
   const userId = req.user._id;
 
