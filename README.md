@@ -3,6 +3,7 @@
 Node/Express API for the MERN e-commerce app. It handles authentication, products, cart, orders, and payments.
 
 ## Features
+
 - JWT auth stored in httpOnly cookies
 - Products CRUD, search, pagination, favorites, ratings
 - Cart management and Stripe checkout session
@@ -10,12 +11,14 @@ Node/Express API for the MERN e-commerce app. It handles authentication, product
 - Image uploads to Cloudinary
 
 ## Tech stack
+
 - Node.js, Express.js
 - MongoDB (Mongoose)
 - JWT + bcrypt
 - Stripe, Cloudinary, Nodemailer
 
 ## Requirements
+
 - Node.js 20+ (uses `node --watch --env-file`)
 - A MongoDB database
 - Stripe keys
@@ -23,6 +26,7 @@ Node/Express API for the MERN e-commerce app. It handles authentication, product
 - Email provider credentials (Gmail or SendGrid)
 
 ## Getting started
+
 1. Install dependencies:
    ```
    npm install
@@ -36,16 +40,18 @@ Node/Express API for the MERN e-commerce app. It handles authentication, product
 By default the API runs on `http://localhost:3000`.
 
 ## Scripts
+
 - `npm run dev` - start with file watching and `.env` loading
 - `npm start` - start without watch mode
 
 ## Environment variables
+
 Create a `.env` file at the project root:
 
 ```
 MONGODB_URI=your_mongodb_connection_string
 JWT_SECRET=your_jwt_secret
-JWT_REXPIRES_IN=3
+JWT_EXPIRES_IN=3
 NODE_ENV=development
 
 CLOUDINARY_CLOUD_NAME=your_cloud_name
@@ -74,18 +80,23 @@ PORT=3000
 ```
 
 Notes:
+
 - Cookies are used for auth. Your frontend should send `credentials: "include"`.
 - If you see CORS errors, update the `allowOrigins` list in `index.js`.
 
 ## API overview
+
 Base paths:
+
 - `/auth` for authentication
 - `/users` for products, cart, orders
 
 Health check:
+
 - `GET /health`
 
 Auth:
+
 - `POST /auth/register`
 - `POST /auth/login`
 - `DELETE /auth/logout`
@@ -95,6 +106,7 @@ Auth:
 - `POST /auth/reset-password/:token`
 
 Products:
+
 - `GET /users/products` (supports `?search=&page=`)
 - `GET /users/products/categories`
 - `GET /users/products/favorite` (auth)
@@ -107,6 +119,7 @@ Products:
 - `PUT /users/products/:id/reduce-stock` (auth)
 
 Cart:
+
 - `GET /users/cart` (auth)
 - `POST /users/cart` (auth)
 - `GET /users/cart/products/:id` (auth)
@@ -115,15 +128,19 @@ Cart:
 - `POST /users/cart/create-checkout-session` (auth)
 
 Orders:
+
 - `GET /users/orders` (auth, supports `?page=`)
 - `POST /users/orders` (auth)
 - `GET /users/orders/:id/invoice` (auth, returns PDF)
 
 ## Chat assistant flow (chat.controller.js)
+
 Endpoint:
+
 - `POST /chat/message`
 
 How it works (high level):
+
 - Detects language with a simple EN/DE heuristic.
 - Optionally fixes typos with the LLM (if `GROQ_API_KEY` is set).
 - Builds a plan with the LLM (query, price range, categories, k); falls back to a simple plan if LLM is not available.
@@ -136,12 +153,14 @@ How it works (high level):
 - Returns `botResponse` as markdown and a `products` array for the UI.
 
 Notes:
+
 - Set `FRONTEND_BASE_URL` so product links point to the right UI.
 - Recommended text index:
   `ProductSchema.index({ title: "text", description: "text", category: "text" })`
 - Bestsellers are defined as highest `averageRating` then newest `createdAt`.
 
 Example request/response:
+
 ```http
 POST /chat/message
 Content-Type: application/json
@@ -149,6 +168,7 @@ Cookie: token=...
 
 { "message": "Is a laptop an SSD?" }
 ```
+
 ```json
 {
   "botResponse": "Here are a few good matches.\n\n### Recommendations\n\n- **Example Product**\n  - Price: €49.99\n  - Category: Electronics\n  - Image: [![Example Product](https://.../image.png)](http://localhost:5173/product/123)\n",
@@ -163,11 +183,14 @@ Cookie: token=...
   ]
 }
 ```
+
 Frontend rendering notes:
+
 - The frontend renders `botResponse` as markdown.
 - The image line is link-wrapped, so clicking the image opens the product page.
 
 ## Project structure
+
 ```
 controllers/
 db/

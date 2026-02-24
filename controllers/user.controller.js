@@ -515,6 +515,8 @@ export const getOrderInvoice = async (req, res, next) => {
       return res.status(404).json({ message: "Order not found" });
     }
 
+    console.log("order in getOrderInvoice", order);
+
     let total = 0;
     const invoiceName = `invoice-${order._id}.pdf`;
 
