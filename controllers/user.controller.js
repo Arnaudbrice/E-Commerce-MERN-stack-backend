@@ -167,7 +167,7 @@ export const updateProductStock = async (req, res) => {
     id,
     { $inc: { stock: -quantity } }, //! Use $inc to decrement 'stock' by 'quantity' and stock:quantity for incrementation
 
-    { new: true, runValidators: true } // {new: true} returns the updated document
+    { new: true, runValidators: true }, // {new: true} returns the updated document
   );
   if (!product) {
     throw new Error("Product Not Found", { cause: 404 });
@@ -206,7 +206,7 @@ MongoDB's dot notation allows querying fields within array subdocuments. For exa
   if (!existOrderForUser) {
     throw new Error(
       "No Order Found, You Can Only Rate Products That You Have Purchased",
-      { cause: 404 }
+      { cause: 404 },
     );
   }
 
@@ -223,7 +223,7 @@ MongoDB's dot notation allows querying fields within array subdocuments. For exa
     comment,
   };
   const existingReview = product.reviews.find(
-    (review) => review.user.toString() === userId.toString()
+    (review) => review.user.toString() === userId.toString(),
   );
   console.log("existingReview------------------", existingReview);
 
@@ -256,7 +256,7 @@ MongoDB's dot notation allows querying fields within array subdocuments. For exa
       {
         $set: { rating, comment },
       },
-      { new: true }
+      { new: true },
     );
 
     for (const review of product.reviews) {
@@ -286,9 +286,9 @@ MongoDB's dot notation allows querying fields within array subdocuments. For exa
       parseFloat(
         product?.reviews?.reduce(
           (accumulator, currentReview) => accumulator + currentReview.rating,
-          0
-        ) / product.reviews.length
-      ).toFixed(1) * 2
+          0,
+        ) / product.reviews.length,
+      ).toFixed(1) * 2,
     ) / 2;
   console.log("product.averageRating", product.averageRating);
 
@@ -363,7 +363,7 @@ export const getOrders = async (req, res) => {
     .limit(itemPerPage);
 
   const orders = await Order.find({ userId: userId }).populate(
-    "products.productId"
+    "products.productId",
   ); //!populate every productId in the products array
 
   if (!orders.length) {
@@ -408,7 +408,7 @@ export const updateOrderStatus = async (req, res) => {
   const updatedOrder = await Order.findByIdAndUpdate(
     id,
     { status },
-    { new: true, runValidators: true }
+    { new: true, runValidators: true },
   );
 
   if (!updatedOrder) {
@@ -470,11 +470,21 @@ export const createOrder = async (req, res) => {
   });
 
   // create order
-  const order = await Order.create({
-    userId: userId,
-    products: cartItems, // cartItems is a copy of the cart's products at order time
-    shippingAddress,
-  });
+  let order;
+  if (user.role === "admin") {
+    order = await Order.create({
+      userId: userId,
+      products: cartItems,
+      shippingAddress,
+      isAdminOrder: true, // by setting this flag, It will ignore the shippingAddress field firstName and lastName for admin orders
+    });
+  } else {
+    order = await Order.create({
+      userId: userId,
+      products: cartItems, // cartItems is a copy of the cart's products at order time
+      shippingAddress,
+    });
+  }
 
   console.log(chalk.green("Order created successfully:"), order);
 
@@ -485,9 +495,9 @@ export const createOrder = async (req, res) => {
         await Product.findByIdAndUpdate(
           item.productId,
           { $inc: { stock: -item.quantity } },
-          { new: true }
-        )
-    )
+          { new: true },
+        ),
+    ),
   );
 
   console.log("order.products after stock update", order.products);
@@ -511,6 +521,9 @@ export const getOrderInvoice = async (req, res, next) => {
   try {
     const { id } = req.params;
     const order = await Order.findById(id);
+    const admin = await User.findOne({ role: "admin" }).populate(
+      "defaultAddress",
+    );
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
     }
@@ -552,7 +565,7 @@ export const getOrderInvoice = async (req, res, next) => {
 
     pdf.pipe(res);
 
-    addHeader(pdf, fontPathText, order._id, order.createdAt);
+    addHeader(pdf, fontPathText, order._id, order.createdAt, order, admin);
 
     pdf
       .font(fontPathTitle)
@@ -654,31 +667,61 @@ export const getOrderInvoice = async (req, res, next) => {
   }
 };
 
-function addHeader(doc, fontPath, invoiceId, invoiceDate) {
+const addHeader = (doc, fontPath, invoiceId, invoiceDate, order, admin) => {
   doc.font(fontPath);
   // Company name / logo area
-  doc.fontSize(24).text("Bon Marché", { align: "left" });
+  doc
+    .fontSize(10)
+    .text(`${order?.shippingAddress?.companyName || ""}`, { align: "left" });
+
+  doc.moveDown(0.2);
+
+  doc
+    .fontSize(10)
+    .text(
+      `${order?.shippingAddress?.firstName || ""} ${order?.shippingAddress?.lastName || ""}`,
+      { align: "left" },
+    );
 
   doc.moveDown(0.2);
   doc
     .fontSize(10)
-    .text("Street Address 123", { align: "left" })
-    .text("12345 City, Country", { align: "left" })
-    .text("support@yourcompany.com", { align: "left" });
+    .text(`${order?.shippingAddress?.streetAddress || ""}`, { align: "left" })
+    .text(
+      `${order?.shippingAddress?.zipCode + " " || ""} ${order?.shippingAddress?.city || ""}`,
+      { align: "left" },
+    );
 
   doc.moveUp(4); // move cursor up to same line height as title
-  doc.fontSize(32).text("Order", {
-    align: "right",
-  });
+  // doc.fontSize(32).text("Order", {
+  //   align: "right",
+  // });
+
+  doc
+    .fontSize(10)
+    .text(`${admin?.defaultAddress?.companyName || ""}`, { align: "right" });
+
+  doc.moveDown(0.2);
+  doc
+    .fontSize(10)
+    .text(`${admin?.defaultAddress?.streetAddress || ""}`, { align: "right" })
+    .text(
+      `${admin?.defaultAddress?.zipCode + " " || ""} ${admin?.defaultAddress?.city || ""}`,
+      { align: "right" },
+    )
+    .text("support@yourcompany.com", { align: "right" });
+
   const orderDateText =
     invoiceDate ? new Date(invoiceDate).toLocaleString() : "Unknown";
+
+  doc.moveDown(0.2);
 
   doc
     .fontSize(10)
     .text(`Order ID: ${invoiceId}`, { align: "right" })
     .text(`Order Date: ${orderDateText}`, { align: "right" });
-  doc.moveDown(2);
-}
+  doc.moveDown(0.2);
+};
 
 function addFooter(doc, fontPath) {
   const bottom = doc.page.height - doc.page.margins.bottom;
@@ -697,7 +740,7 @@ function addFooter(doc, fontPath) {
     {
       align: "center",
       width: doc.page.width - doc.page.margins.left - doc.page.margins.right,
-    }
+    },
   );
 }
 
@@ -727,7 +770,7 @@ export const updateProductFavorite = async (req, res) => {
   const updatedProduct = await Product.findByIdAndUpdate(
     id,
     { $set: { isFavorite } },
-    { new: true }
+    { new: true },
   ); //return the updated document
   if (!updatedProduct) {
     throw new Error("Product not found", { cause: 404 });
@@ -756,7 +799,7 @@ export const getCartProducts = async (req, res) => {
     }) */
 
   const cart = await Cart.findOne({ userId: userId }).populate(
-    "products.productId"
+    "products.productId",
   ); //Populating productId for each item within the products array
 
   if (!cart) {
@@ -773,7 +816,7 @@ export const getProductFromCart = async (req, res) => {
   console.log("productId here again", productId);
 
   const cart = await Cart.findOne({ userId: userId }).populate(
-    "products.productId"
+    "products.productId",
   ); //Populating productId for each item within the products array
 
   if (!cart) {
@@ -782,7 +825,7 @@ export const getProductFromCart = async (req, res) => {
   }
 
   const product = cart.products.find(
-    (item) => item.productId._id.toString() === productId.toString()
+    (item) => item.productId._id.toString() === productId.toString(),
   );
 
   if (!product) {
@@ -825,7 +868,7 @@ export const addProductToCart = async (req, res) => {
 
   // Check if product already in cart
   const productIndex = cart.products.findIndex(
-    (product) => product.productId.toString() === productId.toString()
+    (product) => product.productId.toString() === productId.toString(),
   );
 
   if (productIndex > -1) {
@@ -846,7 +889,7 @@ export const addProductToCart = async (req, res) => {
 
   //!populate product details before sending response(populate is always called on the mongoose document)
   const populatedCart = await Cart.findOne({ userId: userId }).populate(
-    "products.productId"
+    "products.productId",
   );
 
   console.log("populatedCart", populatedCart);
@@ -863,7 +906,7 @@ export const removeProductFromCart = async (req, res) => {
     {
       $pull: { products: { productId } },
     },
-    { new: true }
+    { new: true },
   );
 
   if (!updatedCart) {
@@ -872,7 +915,7 @@ export const removeProductFromCart = async (req, res) => {
 
   console.log(
     chalk.yellow("Product removed from cart successfully!"),
-    updatedCart
+    updatedCart,
   );
   // console.log("updatedCart", updatedCart);
 
@@ -891,7 +934,7 @@ export const clearUserCart = async (req, res) => {
   const result = await Cart.findOneAndUpdate(
     { userId: userId },
     { $set: { products: [] } },
-    { new: true }
+    { new: true },
   );
 
   if (!result) {
@@ -909,10 +952,20 @@ export const clearUserCart = async (req, res) => {
 
 export const createCheckoutSession = async (req, res) => {
   const { cartList } = req.body;
+  console.log("cartList", cartList);
   const userId = req.user._id;
+
+  // const user = await User.findById(userId);
   const session = await stripe.checkout.sessions.create({
-    payment_method_types: ["card"],
+    payment_method_types: ["card", "klarna", "sepa_debit", "sofort", "paypal"],
+
     mode: "payment",
+    /*     customer_email: user?.email || "", // Fill in for Klarna/PayPal */
+    // important: Metadata for the  Webhook
+    metadata: {
+      userId: userId.toString(),
+      cartId: cartList._id, // If we have a cart ID in the DB
+    },
     line_items: cartList.products.map((item) => {
       return {
         price_data: {
@@ -928,7 +981,8 @@ export const createCheckoutSession = async (req, res) => {
         quantity: item.quantity,
       };
     }),
-
+    // Billing Address Collection for Klarna often required
+    // billing_address_collection: "required",
     success_url: `${process.env.FRONTEND_BASE_URL}/cart?success=true`, // Redirect to cart page after payment
     cancel_url: `${process.env.FRONTEND_BASE_URL}/cart?canceled=true`, // Redirect to cart page after payment
   });

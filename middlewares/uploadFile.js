@@ -2,6 +2,7 @@ import Cloudinary from "../services/cloudinary.js";
 import path from "path";
 import multer from "multer";
 
+
 // create an instance of the Cloudinary class
 const cloudinaryStorage = new Cloudinary();
 

@@ -39,9 +39,19 @@ const orderSchema = new mongoose.Schema(
       },
     ],
     shippingAddress: {
-      firstName: { type: String, required: true },
-      lastName: { type: String, required: true },
-
+      firstName: {
+        type: String,
+        required: function () {
+          return !this.isAdminOrder; //admin orders do not require firstName
+        },
+      },
+      lastName: {
+        type: String,
+        required: function () {
+          return !this.isAdminOrder; //admin orders do not require lastName
+        },
+      },
+      companyName: { type: String },
       streetAddress: { type: String, required: true },
       zipCode: { type: String, required: true },
       city: { type: String, required: true },
@@ -49,13 +59,18 @@ const orderSchema = new mongoose.Schema(
 
       country: { type: String, required: true },
     },
+
+    isAdminOrder: {
+      type: Boolean,
+      default: false,
+    },
     status: {
       type: String,
       enum: ["pending", "shipped", "delivered", "cancelled"],
       default: "pending",
     },
   },
-  { toJSON: { getters: true }, timestamps: true } // When this document is converted to JSON (for the API or for the frontend), please ensure that all `get` functions are executed.
+  { toJSON: { getters: true }, timestamps: true }, // When this document is converted to JSON (for the API or for the frontend), please ensure that all `get` functions are executed.
   // { timestamps: true }
   // add createdAt and updatedAt fields
 );
