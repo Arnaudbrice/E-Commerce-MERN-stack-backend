@@ -33,7 +33,7 @@ export const createProduct = async (req, res) => {
   /*    console.log("hello");
   console.log("req", req.body);
   console.log("req file", req.file); */
-  const { title, price, description, category, stock } = req.body;
+  const { title, price, weight, description, category, stock } = req.body;
 
   // get the secure url of the uploaded image from cloudinary storage (after successfully uploading the image to cloudinary storage)
   const imageUrl = req.file.secure_url;
@@ -41,6 +41,7 @@ export const createProduct = async (req, res) => {
   const product = await Product.create({
     title,
     price,
+    weight,
     description,
     category,
     image: imageUrl,
@@ -131,9 +132,13 @@ export const deleteProduct = async (req, res) => {
 export const updateProduct = async (req, res) => {
   const { id } = req.params;
 
-  console.log("req.body in updateProduct", "hello");
-  /*  const { title, description, category, stock, price, image } = req.body; */
+  console.log("req.body in updateProduct", req.body);
   let update = { ...req.body };
+  console.log("update", update);
+
+  /*  update.weight = parseFloat(update.weight);
+  update.price = parseFloat(update.price);
+     update.stock = parseInt(update.stock); */
 
   // get the secure url of the uploaded image from cloudinary storage (after successfully uploading the image to cloudinary storage)
   const imageUrl = req.file?.secure_url;
@@ -379,12 +384,13 @@ export const getOrders = async (req, res) => {
 
   const ordersProductsForCurrentPage = ordersForCurrentPage.map((order) => {
     return {
-      id: order._id,
+      _id: order._id,
       products: order.products,
       status: order.status,
       createdAt: order.createdAt,
       shippingAddress: order.shippingAddress,
       userId: order.userId,
+      shippingCosts: order.shippingCosts,
     };
   });
 
@@ -426,7 +432,7 @@ export const createOrder = async (req, res) => {
   const userId = req.user._id;
 
   console.log("userId in createOrder", userId);
-  const { shippingAddress } = req.body;
+  const { shippingAddress, shippingCosts } = req.body;
 
   // !note: after populating cartId, cartId becomes a Cart document that can be save using user.cartId.save()
 
@@ -476,6 +482,7 @@ export const createOrder = async (req, res) => {
       userId: userId,
       products: cartItems,
       shippingAddress,
+      shippingCosts,
       isAdminOrder: true, // by setting this flag, It will ignore the shippingAddress field firstName and lastName for admin orders
     });
   } else {
@@ -483,6 +490,7 @@ export const createOrder = async (req, res) => {
       userId: userId,
       products: cartItems, // cartItems is a copy of the cart's products at order time
       shippingAddress,
+      shippingCosts,
     });
   }
 
@@ -636,10 +644,19 @@ export const getOrderInvoice = async (req, res, next) => {
         .strokeColor("#cccccc") // light gray
         .lineWidth(1)
         .stroke();
-      total = total + parseFloat(product.price) * product.quantity;
+      total =
+        total +
+        parseFloat(product.price + order.shippingCosts) * product.quantity;
       pdf.moveDown();
     }
 
+    pdf.text(
+      `Shipping Costs: ${parseFloat(order.shippingCosts).toFixed(2) + " €"}`,
+      {
+        align: "center",
+      },
+    );
+    pdf.moveDown();
     pdf
       .font(fontPathTitle)
       .fontSize(20)
@@ -806,6 +823,8 @@ export const getCartProducts = async (req, res) => {
     // throw new Error("Cart not found", { cause: 404 });
     res.json([]);
   }
+
+  console.log("########cart########", cart);
   res.json(cart);
 };
 
@@ -850,6 +869,8 @@ export const addProductToCart = async (req, res) => {
 
   //  Verify if the product exists
   const product = await Product.findById(productId);
+
+  console.log("product in addProductToCart", product);
   if (!product) {
     throw new Error("Product not found.", { cause: 404 });
   }
@@ -880,6 +901,7 @@ export const addProductToCart = async (req, res) => {
       quantity,
       title: product.title, // Snapshot product details
       price: product.price,
+      weight: product.weight,
       description: product.description,
       image: product.image,
     });
@@ -951,10 +973,40 @@ export const clearUserCart = async (req, res) => {
 //********** POST /users/cart/create-checkout-session **********
 
 export const createCheckoutSession = async (req, res) => {
-  const { cartList } = req.body;
+  const { cartList, shippingCosts } = req.body;
   console.log("cartList", cartList);
   const userId = req.user._id;
 
+  // Create line items from cart products
+  const lineItems = cartList.products.map((item) => {
+    return {
+      price_data: {
+        currency: "eur",
+        product_data: {
+          name: item.productId.title,
+          images: [item.productId.image],
+          description: item.productId.description,
+        },
+        unit_amount: Math.round(item.productId.price * 100), // convert to cents
+      },
+      quantity: item.quantity,
+    };
+  });
+
+  // Add shipping costs as a separate line item
+  if (shippingCosts && shippingCosts > 0) {
+    lineItems.push({
+      price_data: {
+        currency: "eur",
+        product_data: {
+          name: "Shipping Costs",
+          description: "Delivery fee",
+        },
+        unit_amount: Math.round(shippingCosts * 100), // convert to cents
+      },
+      quantity: 1,
+    });
+  }
   // const user = await User.findById(userId);
   const session = await stripe.checkout.sessions.create({
     payment_method_types: ["card", "klarna", "sepa_debit", "sofort", "paypal"],
@@ -966,21 +1018,8 @@ export const createCheckoutSession = async (req, res) => {
       userId: userId.toString(),
       cartId: cartList._id, // If we have a cart ID in the DB
     },
-    line_items: cartList.products.map((item) => {
-      return {
-        price_data: {
-          currency: "eur",
-          product_data: {
-            name: item.productId.title,
-            images: [item.productId.image],
-            description: item.productId.description,
-          },
-          unit_amount: Math.round(item.productId.price * 100), //convert to cents (e.g. 49.99 EUR = 4999 cents)
-        },
+    line_items: lineItems,
 
-        quantity: item.quantity,
-      };
-    }),
     // Billing Address Collection for Klarna often required
     // billing_address_collection: "required",
     success_url: `${process.env.FRONTEND_BASE_URL}/cart?success=true`, // Redirect to cart page after payment

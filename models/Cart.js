@@ -29,8 +29,14 @@ const cartSchema = new mongoose.Schema({
         required: true,
       },
       price: {
-        type: mongoose.Schema.Types.Decimal128, // ( Decimal128 supports up to 34 decimal digits of precision.)
+        type: Number,
         required: true,
+        min: 0,
+      },
+      weight: {
+        type: Number,
+        // required: true,
+        min: 0,
       },
       description: {
         type: String,

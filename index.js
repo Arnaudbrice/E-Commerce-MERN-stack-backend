@@ -68,7 +68,7 @@ app.use(express.json());
 app.use(
   express.urlencoded({
     extended: true, //to be able to parse also nested objects
-  })
+  }),
 );
 app.use(cookieParser());
 

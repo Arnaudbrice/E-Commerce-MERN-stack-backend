@@ -28,9 +28,9 @@ const orderSchema = new mongoose.Schema(
           required: true,
         },
         price: {
-          type: mongoose.Schema.Types.Decimal128,
+          type: Number,
           required: true,
-          get: (v) => parseFloat(v.toString()), // Automatically converts to number when reading
+          min: 0,
         },
         quantity: {
           type: Number,
@@ -69,8 +69,13 @@ const orderSchema = new mongoose.Schema(
       enum: ["pending", "shipped", "delivered", "cancelled"],
       default: "pending",
     },
+    shippingCosts: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
   },
-  { toJSON: { getters: true }, timestamps: true }, // When this document is converted to JSON (for the API or for the frontend), please ensure that all `get` functions are executed.
+  { timestamps: true },
   // { timestamps: true }
   // add createdAt and updatedAt fields
 );
