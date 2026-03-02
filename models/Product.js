@@ -69,10 +69,15 @@ const productSchema = new mongoose.Schema(
     averageRating: {
       type: Number,
     },
+    weight: {
+      type: Number,
+      required: true,
+      min: 0, // optional guard
+    },
   },
   {
     timestamps: true, // adds createdAt & updatedAt
-  }
+  },
 
   // adds createdAt & updatedAt
 );

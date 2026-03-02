@@ -6,7 +6,13 @@ export const productSchema = z.object({
     .string()
     .regex(
       /^\d+(\.\d{1,34})?$/,
-      "Price must be a valid number with up to 34 decimal places"
+      "Price must be a valid number with up to 34 decimal places",
+    ),
+  weight: z
+    .string()
+    .regex(
+      /^\d+(\.\d{1,6})?$/,
+      "Weight must be a valid number with up to 6 decimal places",
     ),
 
   description: z
