@@ -45,6 +45,7 @@ const userSchema = new mongoose.Schema({
   country: String, */
   addresses: [{ type: mongoose.Schema.Types.ObjectId, ref: "Address" }],
   defaultAddress: { type: mongoose.Schema.Types.ObjectId, ref: "Address" }, //address id
+  userAvatar: { type: String },
   resetToken: String,
   resetTokenExpiration: Date,
 });

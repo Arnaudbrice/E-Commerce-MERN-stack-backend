@@ -1,6 +1,8 @@
 import express from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
+import rateLimit from "express-rate-limit";
+import helmet from "helmet";
 
 import "./db/index.js"; //!connect to mongodb database
 
@@ -23,6 +25,11 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
+//********** order: security middlewares (helmet), cors, rate limiting(express-rate-limit), body parsing, routes, error handling middleware **********
+
+app.use(helmet()); //activate all security headers
+
+//CORS middleware to allow cross-origin requests from the frontend application and other trusted origins (like Stripe for payment processing)
 // An array that lists the origins that are allowed to make cross‑origin requests to our API.
 const allowOrigins = [
   "https://e-commerce-mern-stack-frontend-q5j0.onrender.com",
@@ -63,6 +70,18 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
+// Apply rate limiting to all requests to prevent abuse and protect against brute-force attacks
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: "Too many requests from this IP, please try again later.",
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use(limiter);
+
+// Body parsing middleware to parse incoming request bodies in a middleware before our handlers, available under the req.body property.
 app.use(express.json());
 
 app.use(
@@ -81,7 +100,6 @@ app.get("/health", async (req, res) => {
 });
 
 //****** Routes specific middleware setting ******
-
 // public routes
 app.use("/auth", authRouter);
 
@@ -92,6 +110,8 @@ app.use("/chat", chatRouter);
 
 app.use("/users", userRouter);
 
+//********** Error handling middleware **********
+// Error handling middleware should be the last middleware added with app.use() after all routes and other middleware, so it can catch errors from them
 app.use(errorHandler);
 const port = process.env.PORT || 3000;
 app.listen(port, () => {

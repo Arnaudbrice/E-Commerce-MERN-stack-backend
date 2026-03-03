@@ -13,6 +13,7 @@ import {
 import authenticate from "../middlewares/authenticate.js";
 import validateSchema from "../middlewares/validateSchema.js";
 import { loginSchema, registerSchema } from "../schemas/auth.schema.js";
+import uploadFile from "../middlewares/uploadFile.js";
 
 const authRouter = express.Router();
 
@@ -38,7 +39,7 @@ authRouter
 authRouter.delete("/logout", logout);
 
 //********** profile **********
-authRouter.put("/profile", authenticate, updateProfile);
+authRouter.put("/profile", authenticate, uploadFile, updateProfile);
 
 //********** shipping address **********
 authRouter.post("/shippingAddress", authenticate, addShippingAddress);
