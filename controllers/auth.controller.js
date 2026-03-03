@@ -184,7 +184,7 @@ export const getResetPassword = async (req, res) => {
   if (!user) {
     throw new Error(
       "Invalid token, please send a new mail to reset your password",
-      { cause: 404 }
+      { cause: 404 },
     );
   }
 
@@ -205,7 +205,7 @@ export const resetPassword = async (req, res) => {
   if (!user) {
     throw new Error(
       "Invalid token, please send a new mail to reset your password",
-      { cause: 404 }
+      { cause: 404 },
     );
   }
 
@@ -241,6 +241,9 @@ export const updateProfile = async (req, res) => {
     country,
   } = req.body;
 
+  const imageUrl = req.file?.secure_url; //from cloudinary response, secure_url is the url of the uploaded image
+  console.log("imageUrl", imageUrl);
+
   //  Get the user document (with addresses array)
   let user = await User.findById(userId)
     .populate("addresses")
@@ -267,8 +270,7 @@ export const updateProfile = async (req, res) => {
     address.country = country;
     await address.save();
   } else {
-    // If not found, create a new Address and push its _id to the user
-
+    // If not found, create a new Address and push its _id to the user addresses array, and set it as the default address
     const newAddress = await Address.create({
       label,
       firstName,
@@ -281,22 +283,36 @@ export const updateProfile = async (req, res) => {
       zipCode,
       country,
     });
-    user = await User.findByIdAndUpdate(
-      userId,
-      {
-        $push: { addresses: newAddress._id },
-        $set: { defaultAddress: newAddress._id },
-      },
-      { new: true, runValidators: true }
-    ).lean(); //to get a plain object instead of a mongoose document, so that we can delete the password property from the user object before sending the response back to the client
-    if (!user) {
-      // user not found
-      throw new Error("User Not Found", { cause: 404 });
-    }
-    // remove password
-    // const userWithoutPassword = user.toObject();
-    delete user.password;
+
+    user.addresses.push(newAddress._id);
+    user.defaultAddress = newAddress._id; // Set the new address as the default address
+    await user.save();
   }
+
+  // Update avatar AFTER address logic (for both cases)
+  const updateData = {};
+  if (imageUrl) {
+    updateData.userAvatar = imageUrl;
+  }
+  user = await User.findByIdAndUpdate(
+    userId,
+    {
+      // $set: { userAvatar: imageUrl },
+      $set: updateData,
+    },
+    { new: true, runValidators: true },
+  )
+    .populate("addresses")
+    .populate("defaultAddress")
+    .lean(); //to get a plain object instead of a mongoose document, so that we can delete the password property from the user object before sending the response back to the client
+  if (!user) {
+    // user not found
+    throw new Error("User Not Found", { cause: 404 });
+  }
+
+  // remove password
+  // const userWithoutPassword = user.toObject();
+  delete user.password;
 
   res.status(200).json({ user });
 };
@@ -326,7 +342,7 @@ export const addShippingAddress = async (req, res) => {
     {
       new: true,
       runValidators: true,
-    }
+    },
   ).lean();
 
   if (!updatedUser) {
@@ -357,5 +373,6 @@ export const getMe = async (req, res) => {
     throw new Error("User Not Found", { cause: 404 });
   }
 
+  console.log("user in getMe", user);
   res.json(user);
 };
