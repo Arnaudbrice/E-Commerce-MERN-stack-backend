@@ -79,6 +79,14 @@ const limiter = rateLimit({
   legacyHeaders: false,
 });
 
+const chatLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 50, // limit each IP to 50 requests per windowMs
+  message: "Too many requests from this IP, please try again later.",
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 app.use(limiter);
 
 // Body parsing middleware to parse incoming request bodies in a middleware before our handlers, available under the req.body property.
@@ -106,7 +114,7 @@ app.use("/auth", authRouter);
 // protected routes
 // app.use(authenticate);
 
-app.use("/chat", chatRouter);
+app.use("/chat", chatLimiter, chatRouter);
 
 app.use("/users", userRouter);
 
