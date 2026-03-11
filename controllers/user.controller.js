@@ -63,13 +63,17 @@ export const getProducts = async (req, res) => {
   let query = {};
   if (search) {
     // i means case insensitive
-    // search in title or description fields using regex with i option for case insensitive ( to count only documents where the search term is present in the title or description field )
+    // search in title or description fields using regex with i option for case insensitive ( to count only documents where the search term is present in the title or description field ) -> regex for partial matches
     query = {
       $or: [
         { title: { $regex: search, $options: "i" } },
         { description: { $regex: search, $options: "i" } },
       ],
     };
+
+    /* query = {
+      $text: { $search: search }, //MongoDB's text indexes are case-insensitive by default and faster than $regex, but used for exact matches only
+    }; */
   }
 
   const numberOfProducts = await Product.countDocuments(query);

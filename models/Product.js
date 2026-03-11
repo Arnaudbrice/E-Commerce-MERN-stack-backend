@@ -82,6 +82,9 @@ const productSchema = new mongoose.Schema(
   // adds createdAt & updatedAt
 );
 
+// Add a text index for title and description (MongoDB will use this index to perform text searches with the $text operator.-> $text: { $search: "query" } is equivalent to $or: [{ title: { $regex: "query", $options: "i" } }, { description: { $regex: "query", $options: "i" } }] but much faster)
+productSchema.index({ title: "text", description: "text", category: "text" });
+
 const Product = mongoose.model("Product", productSchema);
 
 export default Product;
