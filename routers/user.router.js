@@ -21,6 +21,7 @@ import {
   getProduct,
   getAllOrders,
   updateOrderStatus,
+  createContactMessage,
 } from "../controllers/user.controller.js";
 import uploadFile from "../middlewares/uploadFile.js";
 import validateSchema from "../middlewares/validateSchema.js";
@@ -39,7 +40,7 @@ userRouter.route("/products").get(getProducts).post(
   uploadFile,
   validateSchema(productSchema),
 
-  createProduct
+  createProduct,
 );
 userRouter.get("/product", getProducts);
 
@@ -107,5 +108,9 @@ userRouter
   .put(authenticate, isAdmin, updateOrderStatus);
 
 userRouter.route("/orders/:id/invoice").get(authenticate, getOrderInvoice);
+
+//********** contact **********
+
+userRouter.route("/contact-messages").post(createContactMessage);
 
 export default userRouter;
