@@ -22,6 +22,7 @@ import {
   getAllOrders,
   updateOrderStatus,
   createContactMessage,
+  sendStatusUpdateEmail,
 } from "../controllers/user.controller.js";
 import uploadFile from "../middlewares/uploadFile.js";
 import validateSchema from "../middlewares/validateSchema.js";
@@ -94,6 +95,10 @@ userRouter
   .route("/cart/create-checkout-session")
   .post(authenticate, createCheckoutSession);
 
+//********** Contact Messages**********
+
+userRouter.route("/contact-messages").post(createContactMessage);
+
 //********** orders **********
 
 userRouter
@@ -104,13 +109,14 @@ userRouter
 userRouter.route("/admin/orders").get(authenticate, isAdmin, getAllOrders);
 
 userRouter
-  .route("/admin/orders/:id")
-  .put(authenticate, isAdmin, updateOrderStatus);
+  .route("/admin/orders/:id/send-status-update-email")
+  .post(authenticate, isAdmin, sendStatusUpdateEmail);
 
 userRouter.route("/orders/:id/invoice").get(authenticate, getOrderInvoice);
 
-//********** contact **********
-
-userRouter.route("/contact-messages").post(createContactMessage);
+// Generic routes LAST (with :id parameter)
+userRouter
+  .route("/admin/orders/:id")
+  .put(authenticate, isAdmin, updateOrderStatus);
 
 export default userRouter;

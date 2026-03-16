@@ -1175,6 +1175,7 @@ export const createContactMessage = async (req, res) => {
           <div class="footer">
             <p>This email was sent from the Bon Marché contact form.</p>
             <p>To reply, use the "Reply" button or email <strong>${email}</strong> directly.</p>
+             <p>&copy;${new Date().getFullYear()} Bon Marché. All rights reserved.</p>
           </div>
         </div>
       </body>
@@ -1184,4 +1185,173 @@ export const createContactMessage = async (req, res) => {
 
   await transporter.sendMail(msg);
   res.status(200).json({ message: "Contact message sent successfully" });
+};
+
+export const sendStatusUpdateEmail = async (req, res) => {
+  const { newStatus } = req.body;
+  const { id } = req.params;
+
+  // find order with id and retrieves email of the user who made the order
+  const order = await Order.findById(id)
+    .populate("userId")
+    .populate(
+      "products.productId",
+      "title price image description price quantity",
+    )
+    .populate("shippingAddress");
+  const userEmail = order.userId.email;
+
+  console.log("order in sendStatusUpdateEmail", order);
+  const firstName =
+    order?.shippingAddress?.firstName ||
+    order?.shippingAddress?.companyName ||
+    "" + " " + order?.defaultAddress?.firstName ||
+    "";
+  const lastName = order?.shippingAddress?.lastName || "";
+  const name = `${firstName} ${lastName}`.trim(); // trim removes extra spaces
+
+  const productTablerows = [];
+  for (const product of order.products) {
+    productTablerows.push(
+      `<tr>
+        <td>${product.productId.title}</td>
+        <td>${product.quantity}</td>
+        <td>
+          ${parseFloat(product.price * product.quantity).toFixed(2) + " €"}
+        </td>
+      </tr>`,
+    );
+  }
+
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    port: 587,
+    auth: {
+      user: process.env.GMAIL_EMAIL,
+      pass: process.env.GMAIL_APP_PASSWORD,
+    },
+    tls: {
+      rejectUnauthorized: false,
+    },
+  });
+
+  const msg = {
+    from: `Bon Marché <${process.env.GMAIL_EMAIL}>`,
+    to: `${userEmail}`,
+    replyTo: `${userEmail}`,
+    subject: `Bon Marché - Order Status Update: ${newStatus}`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          body {
+            font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f9f9f9;
+            padding: 20px;
+            margin: 0;
+          }
+          .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 30px;
+          }
+          .header {
+            border-bottom: 3px solid #ea580c;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+          }
+          .header h2 {
+            margin: 0;
+            color: #ea580c;
+            font-size: 24px;
+            font-weight: 700;
+          }
+          .field {
+            margin-bottom: 20px;
+          }
+          .field-label {
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 5px;
+            font-size: 14px;
+          }
+
+
+          .field-value {
+            background-color: #f5f5f5;
+            padding: 12px;
+            border-radius: 4px;
+            border-left: 3px solid #ea580c;
+            color: #333;
+            word-break: break-word;
+            font-weight: 400;
+          }
+          .message-content {
+            background-color: #f0f7ff;
+            padding: 15px;
+            border-radius: 4px;
+            border-left: 4px solid #ea380c;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-weight: 400;
+          }
+          .footer {
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 1px solid #ddd;
+            font-size: 12px;
+            color: #999;
+            text-align: center;
+          }
+        </style>
+      </head>
+     <body>
+        <div class="container">
+          <div class="header">
+            <h2>📦 Order Status Update</h2>
+          </div>
+
+          <div class="field">
+            <div class="field-label">Hello ${name}</div>
+            <div class="field-value">
+              <p>We have great news! Your order status has been updated to <strong>${newStatus}</strong>.</p>
+            </div>
+          </div>
+
+          <div class="field">
+            <div class="field-label">Order Details</div>
+            <table>
+              <thead>
+                <tr style="text-align:center;display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; place-items: center;" >
+                  <th>Product</th>
+                  <th>Quantity</th>
+                  <th>Price</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${productTablerows.join("")}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="footer">
+
+            <p>Thank you for your order! </p>
+            <p>&copy;${new Date().getFullYear()} Bon Marché. All rights reserved.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `,
+  };
+
+  await transporter.sendMail(msg);
+  res.status(200).json({ message: "Status update email sent successfully" });
 };
