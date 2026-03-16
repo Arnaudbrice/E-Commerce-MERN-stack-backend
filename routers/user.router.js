@@ -107,6 +107,10 @@ userRouter
   .route("/admin/orders/:id")
   .put(authenticate, isAdmin, updateOrderStatus);
 
+userRouter
+  .route("/admin/orders/:id/send-status-update-email")
+  .post(authenticate, isAdmin, sendStatusUpdateEmail);
+
 userRouter.route("/orders/:id/invoice").get(authenticate, getOrderInvoice);
 
 //********** contact **********
