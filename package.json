@@ -38,6 +38,7 @@
     "nodemailer": "^7.0.10",
     "openai": "^6.16.0",
     "pdfkit": "^0.17.2",
+    "sanitize-html": "^2.17.1",
     "stripe": "^19.3.0",
     "zod": "^4.1.12"
   }

@@ -14,6 +14,9 @@ import Review from "../models/Review.js";
 import mongoose from "mongoose";
 import { getPagination } from "../utils/pagination.js";
 
+import sanitizeHtml from "sanitize-html";
+import nodemailer from "nodemailer";
+
 //! return a cross-platform valid absolute path to the current file (import.meta.url returns full url of the current file)-> /Users/Arnaud/Desktop/wdg23/Project-Mern-stack-e-commerce/E-Commerce-MERN-stack-backend/controllers/user.controller.js
 const __filename = fileURLToPath(import.meta.url);
 // return the directory name of the absolute path to the current file->/Users/Arnaud/Desktop/wdg23/Project-Mern-stack-e-commerce/E-Commerce-MERN-stack-backend/controllers
@@ -1031,4 +1034,154 @@ export const createCheckoutSession = async (req, res) => {
   });
 
   res.status(200).json({ url: session.url });
+};
+
+//********** Contact Messages **********
+/**
+ * @desc Handles contact message creation and sends formatted email
+ * @route POST /users/contact-messages
+ * @access Public
+ */
+export const createContactMessage = async (req, res) => {
+  const { name, email, subject, message } = req.body;
+
+  if (!name || !email || !subject || !message) {
+    throw new Error("Please fill in all required fields.", { cause: 400 });
+  }
+
+  // Sanitize user input to prevent XSS
+  const cleanName = sanitizeHtml(name, {
+    allowedTags: [],
+    allowedAttributes: {},
+  });
+  const cleanMessage = sanitizeHtml(message, {
+    allowedTags: ["p", "br", "b", "i"],
+    allowedAttributes: {},
+  });
+  const cleanSubject = sanitizeHtml(subject, {
+    allowedTags: [],
+    allowedAttributes: {},
+  });
+
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    port: 587,
+    auth: {
+      user: process.env.GMAIL_EMAIL,
+      pass: process.env.GMAIL_APP_PASSWORD,
+    },
+    tls: {
+      rejectUnauthorized: false,
+    },
+  });
+
+  const msg = {
+    from: `Bon Marché <${process.env.GMAIL_EMAIL}>`,
+    to: `Bon Marché <${process.env.GMAIL_EMAIL}>`,
+
+    replyTo: email,
+    subject: `Bon Marché - Contact Form: ${cleanSubject}`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          body {
+            font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f9f9f9;
+            padding: 20px;
+            margin: 0;
+          }
+          .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 30px;
+          }
+          .header {
+            border-bottom: 3px solid #ea580c;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+          }
+          .header h2 {
+            margin: 0;
+            color: #ea580c;
+            font-size: 24px;
+            font-weight: 700;
+          }
+          .field {
+            margin-bottom: 20px;
+          }
+          .field-label {
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 5px;
+            font-size: 14px;
+          }
+          .field-value {
+            background-color: #f5f5f5;
+            padding: 12px;
+            border-radius: 4px;
+            border-left: 3px solid #ea580c;
+            color: #333;
+            word-break: break-word;
+            font-weight: 400;
+          }
+          .message-content {
+            background-color: #f0f7ff;
+            padding: 15px;
+            border-radius: 4px;
+            border-left: 4px solid #ea380c;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-weight: 400;
+          }
+          .footer {
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 1px solid #ddd;
+            font-size: 12px;
+            color: #999;
+            text-align: center;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h2>📧 New Contact Message</h2>
+          </div>
+
+          <div class="field">
+            <div class="field-label">From</div>
+            <div class="field-value">${cleanName} &lt;${email}&gt;</div>
+          </div>
+
+          <div class="field">
+            <div class="field-label">Subject</div>
+            <div class="field-value">${cleanSubject}</div>
+          </div>
+
+          <div class="field">
+            <div class="field-label">Message</div>
+            <div class="message-content">${cleanMessage}</div>
+          </div>
+
+          <div class="footer">
+            <p>This email was sent from the Bon Marché contact form.</p>
+            <p>To reply, use the "Reply" button or email <strong>${email}</strong> directly.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `,
+  };
+
+  await transporter.sendMail(msg);
+  res.status(200).json({ message: "Contact message sent successfully" });
 };
