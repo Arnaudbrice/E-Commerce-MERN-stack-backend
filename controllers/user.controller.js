@@ -1223,6 +1223,14 @@ export const sendStatusUpdateEmail = async (req, res) => {
     );
   }
 
+  // Calculate total: shipping + all products
+  const shippingCosts = parseFloat(order.shippingCosts || 0);
+  const productsTotal = order.products.reduce(
+    (sum, p) => sum + p.price * p.quantity,
+    0,
+  );
+  const totalPrice = shippingCosts + productsTotal;
+
   const transporter = nodemailer.createTransport({
     service: "gmail",
     port: 587,
@@ -1245,6 +1253,7 @@ export const sendStatusUpdateEmail = async (req, res) => {
       <html>
       <head>
         <meta charset="UTF-8">
+
         <style>
           body {
             font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -1293,6 +1302,43 @@ export const sendStatusUpdateEmail = async (req, res) => {
             word-break: break-word;
             font-weight: 400;
           }
+
+
+
+            table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+      }
+      th {
+        background-color: #ea580c;
+        color: white;
+        padding: 12px;
+        text-align: left;
+        font-weight: 600;
+        border: 1px solid #ddd;
+      }
+
+
+      td {
+        padding: 12px;
+        border: 1px solid #ddd;
+        vertical-align: middle;
+      }
+      tr:nth-child(even) {
+        background-color: #f9f9f9;
+      }
+      tr:hover {
+        background-color: #f0f0f0;
+      }
+      .price-col {
+        text-align: right;
+        font-weight: 600;
+        color: white;
+      }
+      .qty-col {
+        text-align: center;
+      }
           .message-content {
             background-color: #f0f7ff;
             padding: 15px;
@@ -1327,19 +1373,39 @@ export const sendStatusUpdateEmail = async (req, res) => {
 
           <div class="field">
             <div class="field-label">Order Details</div>
+
+            </div>
             <table>
               <thead>
-                <tr style="text-align:center;display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; place-items: center;" >
-                  <th>Product</th>
+                <tr>
+                  <th style="width: 50%;">Product</th>
                   <th>Quantity</th>
-                  <th>Price</th>
+                  <th class="price-col">Price</th>
                 </tr>
               </thead>
               <tbody>
-                ${productTablerows.join("")}
+
+
+                 ${order.products
+                   .map(
+                     (product) => `
+            <tr>
+              <td style="font-weight: 500;">${product.productId.title}</td>
+              <td class="qty-col">${product.quantity}</td>
+              <td class="price-col">${parseFloat(product.price * product.quantity).toFixed(2)} €</td>
+            </tr>
+          `,
+                   )
+                   .join("")}
               </tbody>
             </table>
-          </div>
+
+
+
+      <div style="background-color: #f5f5f5; padding: 15px; border-left: 4px solid #ea580c; margin: 20px 0;">
+        <p style="margin: 0;"><strong> Total Price (shipping costs included):</strong> <span style="font-size: 18px; color: #ea580c; font-weight: bold;">${totalPrice.toFixed(2)} €</span></p>
+      </div>
+
 
           <div class="footer">
 
