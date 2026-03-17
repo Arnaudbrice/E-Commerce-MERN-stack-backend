@@ -56,53 +56,45 @@ export const createProduct = async (req, res) => {
 };
 
 //********** GET /users/products **********
+// to prevent regex injection attacks
+const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+/* escapeRegex("price.*");        // → "price\.\*"
+escapeRegex("test?");          // → "test\?"
+escapeRegex("$100");           // → "\$100"
+escapeRegex("(special)");      // → "\(special\)" */
+
 export const getProducts = async (req, res) => {
-  const { search, page } = req.query;
+  const page = Number(req.query.page || 1);
+  const search = req.query.search?.trim();
 
-  const currentPageNumber = Number(page) || 1;
+  const query =
+    search ?
+      {
+        $or: [
+          { title: { $regex: escapeRegex(search), $options: "i" } },
+          { description: { $regex: escapeRegex(search), $options: "i" } },
+        ],
+      }
+    : {};
 
-  console.log("currentPageNumber", currentPageNumber);
+  const total = await Product.countDocuments(query);
+  const numberOfPages = Math.ceil(total / itemPerPage);
+  const paginationArray = getPagination(page, numberOfPages, 5);
 
-  let query = {};
-  if (search) {
-    // i means case insensitive
-    // search in title or description fields using regex with i option for case insensitive ( to count only documents where the search term is present in the title or description field ) -> regex for partial matches
-    query = {
-      $or: [
-        { title: { $regex: search, $options: "i" } },
-        { description: { $regex: search, $options: "i" } },
-      ],
-    };
-
-    /* query = {
-      $text: { $search: search }, //MongoDB's text indexes are case-insensitive by default and faster than $regex, but used for exact matches only
-    }; */
-  }
-
-  const numberOfProducts = await Product.countDocuments(query);
-  console.log("numberOfProducts", numberOfProducts);
-
-  const numberOfPages = Math.ceil(numberOfProducts / itemPerPage);
-
-  const paginationArray = getPagination(currentPageNumber, numberOfPages, 5);
-  console.log("paginationArray", paginationArray);
-
-  // get all products that match the search query (if search term is provided), if not provided, get all products
+  // Get ALL matching products
   const products = await Product.find(query);
 
-  // get all products that match the search query (if search term is provided), if not provided, get all products
+  // Get PAGINATED results
   const productsPerPage = await Product.find(query)
-    .skip((currentPageNumber - 1) * itemPerPage)
+    .skip((page - 1) * itemPerPage)
     .limit(itemPerPage);
-
-  // const products = await Product.find();
-  console.log("products", products.length);
 
   res.json({
     products,
     productsPerPage,
     paginationArray,
-    currentPageNumber,
+    currentPageNumber: page,
+    numberOfPages,
   });
 };
 
@@ -319,10 +311,50 @@ MongoDB's dot notation allows querying fields within array subdocuments. For exa
 //********** GET users/admin/orders **********
 export const getAllOrders = async (req, res) => {
   // Optionally: Add admin authentication/authorization check here
+  const currentPageNumber = Number(req.query.page) || 1; //get page number
 
-  const numberOfOrders = await Order.countDocuments();
+  const search = req.query.search?.trim(); // get search term
 
-  const currentPageNumber = Number(req.query.page) || 1;
+  console.log("search", search);
+  let query = {};
+
+  if (search) {
+    const rx = new RegExp(escapeRegex(search), "i");
+
+    // 1) Find users matching email / name/companyName
+    const matchedUsers = await User.find({
+      $or: [
+        { email: rx },
+        { "defaultAddress.firstName": rx },
+        { "defaultAddress.lastName": rx },
+        { "defaultAddress.companyName": rx },
+      ],
+    }).select("_id");
+
+    const matchedUserIds = matchedUsers.map((u) => u._id);
+
+    // 2) Search orders by orderId string OR matched userIds OR shippingAddress fields
+    query = {
+      $or: [
+        {
+          $expr: {
+            $regexMatch: {
+              input: { $toString: "$_id" },
+              regex: escapeRegex(search),
+              options: "i",
+            },
+          },
+        },
+        { userId: { $in: matchedUserIds } },
+        { "shippingAddress.companyName": rx },
+        { "shippingAddress.firstName": rx },
+        { "shippingAddress.lastName": rx },
+      ],
+    };
+  }
+  console.log("query", query);
+  const numberOfOrders = await Order.countDocuments(query);
+
   const itemPerPage = 10;
   const numberOfPages = Math.ceil(numberOfOrders / itemPerPage);
 
@@ -335,7 +367,7 @@ export const getAllOrders = async (req, res) => {
     .limit(itemPerPage);
  */
 
-  const ordersForCurrentPage = await Order.find()
+  const ordersForCurrentPage = await Order.find(query)
     .populate("products.productId")
     .populate({
       path: "userId",
@@ -358,36 +390,69 @@ export const getAllOrders = async (req, res) => {
 export const getOrders = async (req, res) => {
   const userId = req.user._id;
 
+  const currentPageNumber = Number(req.query.page) || 1; //get page number
+  const search = req.query.search?.trim(); //  Get search term
+
+  // Build search query
+  const searchQuery =
+    search ?
+      {
+        $or: [
+          {
+            $expr: {
+              $regexMatch: {
+                input: { $toString: "$_id" },
+                regex: escapeRegex(search),
+                options: "i",
+              },
+            },
+          },
+          {
+            "products.title": {
+              $regex: escapeRegex(search),
+              $options: "i",
+            },
+          },
+        ],
+      }
+    : {};
+
+  // Combine user ID filter with search
+  const query = {
+    userId,
+    ...searchQuery,
+  };
+
   // counts the number of orders for the current user
-  const numberOfOrders = await Order.countDocuments({ userId });
+  const numberOfOrders = await Order.countDocuments(query);
 
   console.log("numberOfOrders", numberOfOrders);
 
-  const currentPageNumber = Number(req.query.page) || 1;
+  const itemPerPage = 10;
   const numberOfPages = Math.ceil(numberOfOrders / itemPerPage);
 
   const paginationArray = getPagination(currentPageNumber, numberOfPages, 5);
   console.log("paginationArray", paginationArray);
 
-  const ordersForCurrentPage = await Order.find({ userId: userId })
+  const ordersForCurrentPage = await Order.find(query)
     .populate("products.productId")
     .skip((currentPageNumber - 1) * itemPerPage)
     .limit(itemPerPage);
 
-  const orders = await Order.find({ userId: userId }).populate(
+  /* const orders = await Order.find({ userId: userId }).populate(
     "products.productId",
-  ); //!populate every productId in the products array
+  ); */ //!populate every productId in the products array
 
-  if (!orders.length) {
-    /*   throw new Error("No orders found for this user", { cause: 404 }); */
+  /*   if (!orders.length) {
+
     res.status(200).json([]);
     return;
-  }
+  } */
 
   // array of populated products arrays
-  const ordersProducts = orders.map((order) => [
+  /* const ordersProducts = orders.map((order) => [
     { id: order._id, products: order.products },
-  ]);
+  ]); */
 
   const ordersProductsForCurrentPage = ordersForCurrentPage.map((order) => {
     return {
@@ -401,10 +466,10 @@ export const getOrders = async (req, res) => {
     };
   });
 
-  console.log("ordersProducts", ordersProducts);
+  // console.log("ordersProducts", ordersProducts);
 
   res.json({
-    ordersProducts,
+    // ordersProducts,
     ordersProductsForCurrentPage,
     paginationArray,
     currentPageNumber,
