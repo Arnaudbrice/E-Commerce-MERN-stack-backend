@@ -160,9 +160,11 @@ export const updateProduct = async (req, res) => {
 };
 
 //********** PUT /users/products/:id/reduce-stock **********
+
 export const updateProductStock = async (req, res) => {
   const { id } = req.params;
-  const { quantity } = req.body;
+
+  const quantity = Number(req.body.quantity);
   const userId = req.user._id;
 
   // const product = await Product.findOne({ _id: id });
@@ -184,7 +186,7 @@ export const updateProductStock = async (req, res) => {
   res.status(200).json({ message: "Product Stock Updated", product }); //204 means no content to be send back (nice of delete and update)
   /*   res.status(201).json({ message: "Product Stock Updated", product }); */
 
-  res.redirect("/orders");
+  // res.redirect("/orders");
 };
 
 //********** handle rating **********
@@ -442,17 +444,6 @@ export const getOrders = async (req, res) => {
   /* const orders = await Order.find({ userId: userId }).populate(
     "products.productId",
   ); */ //!populate every productId in the products array
-
-  /*   if (!orders.length) {
-
-    res.status(200).json([]);
-    return;
-  } */
-
-  // array of populated products arrays
-  /* const ordersProducts = orders.map((order) => [
-    { id: order._id, products: order.products },
-  ]); */
 
   const ordersProductsForCurrentPage = ordersForCurrentPage.map((order) => {
     return {
@@ -779,7 +770,8 @@ const addHeader = (doc, fontPath, invoiceId, invoiceDate, order, admin) => {
     .text(
       `${order?.shippingAddress?.zipCode + " " || ""} ${order?.shippingAddress?.city || ""}`,
       { align: "left" },
-    );
+    )
+    .text(`${order?.shippingAddress?.country || ""}`, { align: "left" });
 
   doc.moveUp(4); // move cursor up to same line height as title
   // doc.fontSize(32).text("Order", {
@@ -893,7 +885,7 @@ export const getCartProducts = async (req, res) => {
 
   if (!cart) {
     // throw new Error("Cart not found", { cause: 404 });
-    res.json([]);
+    return res.json([]);
   }
 
   console.log("########cart########", cart);
@@ -912,7 +904,7 @@ export const getProductFromCart = async (req, res) => {
 
   if (!cart) {
     // throw new Error("Cart not found", { cause: 404 });
-    res.json([]);
+    return res.json([]);
   }
 
   const product = cart.products.find(
@@ -1049,8 +1041,17 @@ export const createCheckoutSession = async (req, res) => {
   console.log("cartList", cartList);
   const userId = req.user._id;
 
+  // only trust cartData from the server side (no need to trust the client -> cartList can be manipulated, so we will not use it here)
+  const cartData = await Cart.findOne({ userId }).populate(
+    "products.productId",
+  );
+
+  if (!cartData || !cartData.products.length) {
+    throw new Error("Cart Is Empty", { cause: 400 });
+  }
+
   // Create line items from cart products
-  const lineItems = cartList.products.map((item) => {
+  const lineItems = cartData.products.map((item) => {
     return {
       price_data: {
         currency: "eur",
@@ -1088,7 +1089,7 @@ export const createCheckoutSession = async (req, res) => {
     // important: Metadata for the  Webhook
     metadata: {
       userId: userId.toString(),
-      cartId: cartList._id, // If we have a cart ID in the DB
+      cartId: cartData._id.toString(), // Convert ObjectId to string
     },
     line_items: lineItems,
 

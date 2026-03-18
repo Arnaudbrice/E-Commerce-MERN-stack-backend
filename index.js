@@ -74,7 +74,7 @@ app.use(cors(corsOptions));
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
 
-  max: 200, // limit each IP to 200 requests per windowMs
+  max: 1000, // limit each IP to 200 requests per windowMs (1000 dev , 200 prod)
 
   message: "Too many requests from this IP, please try again later.",
   standardHeaders: true,
@@ -91,7 +91,7 @@ const chatLimiter = rateLimit({
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 50,
+  max: 300, //dev 300, prod 50
   standardHeaders: true,
   legacyHeaders: false,
 });
