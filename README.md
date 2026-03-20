@@ -1,204 +1,166 @@
-# E-Commerce MERN Backend
+# 🛍️ Bon Marché — E-Commerce API (Backend)
 
-Node/Express API for the MERN e-commerce app. It handles authentication, products, cart, orders, and payments.
+This is the backend API for the **Bon Marché** E-Commerce platform. It's a robust RESTful API built with Node.js, Express, and MongoDB, providing all the necessary functionality for a modern e-commerce application, including authentication, product management, order processing, and an AI shopping assistant.
 
-## Features
+![Node.js](https://img.shields.io/badge/Node.js-20+-43853D?logo=node.js)
+![Express.js](https://img.shields.io/badge/Express.js-4-000000?logo=express)
+![MongoDB](https://img.shields.io/badge/MongoDB-6-47A248?logo=mongodb)
+![JWT](https://img.shields.io/badge/JWT-Auth-black?logo=jsonwebtokens)
+![Stripe](https://img.shields.io/badge/Stripe-API-635BFF?logo=stripe)
+![License](https://img.shields.io/badge/License-MIT-green)
 
-- JWT auth stored in httpOnly cookies
-- Products CRUD, search, pagination, favorites, ratings
-- Cart management and Stripe checkout session
-- Orders with PDF invoice download
-- Image uploads to Cloudinary
+---
 
-## Tech stack
+### **🌐 Live**
 
-- Node.js, Express.js
-- MongoDB (Mongoose)
-- JWT + bcrypt
-- Stripe, Cloudinary, Nodemailer
+> **Live:** [https://e-commerce-mern-stack-frontend-q5j0.onrender.com/](https://e-commerce-mern-stack-frontend-q5j0.onrender.com)
 
-## Requirements
+---
 
-- Node.js 20+ (uses `node --watch --env-file`)
-- A MongoDB database
-- Stripe keys
-- Cloudinary credentials (for image uploads)
-- Email provider credentials (Gmail or SendGrid)
+## ✨ Features
 
-## Getting started
+- **Secure Authentication**: JWT-based authentication with HttpOnly cookies and password hashing using `bcrypt`.
+- **Product Management**: Full CRUD operations for products, including image uploads to Cloudinary.
+- **Search & Pagination**: Advanced text search on products with server-side pagination.
+- **User Features**: Manage wishlists (favorites) and submit product ratings and reviews.
+- **Shopping Cart**: Persistent cart management tied to user accounts.
+- **Stripe Integration**: Create checkout sessions for secure payment processing.
+- **Order Processing**: Create orders, store transaction details, and generate PDF invoices.
+- **AI Shopping Assistant**: Integrates with Groq (LLaMA 3.1) to provide conversational product recommendations.
+- **Security**: Includes rate limiting, CORS, and security headers via Helmet.js.
+- **Email Notifications**: Sends order confirmations and password reset emails using Nodemailer.
 
-1. Install dependencies:
-   ```
-   npm install
-   ```
-2. Create a `.env` file (see below).
-3. Run the server:
-   ```
-   npm run dev
-   ```
+---
 
-By default the API runs on `http://localhost:3000`.
+## 🛠️ Tech Stack
 
-## Scripts
+| Category           | Technology                                            |
+| :----------------- | :---------------------------------------------------- |
+| **Core**           | Node.js, Express.js, Mongoose                         |
+| **Database**       | MongoDB                                               |
+| **Authentication** | `jsonwebtoken` (JWT), `bcrypt`                        |
+| **Payments**       | `stripe`                                              |
+| **File Storage**   | `cloudinary` (for images), `multer` (for uploads)     |
+| **AI / LLM**       | `openai` (Groq-compatible SDK)                        |
+| **Email**          | `nodemailer`                                          |
+| **Security**       | `helmet`, `express-rate-limit`, `cors`                |
+| **Utilities**      | `pdfkit` (for invoices), `franc` (language detection) |
 
-- `npm run dev` - start with file watching and `.env` loading
-- `npm start` - start without watch mode
+---
 
-## Environment variables
+## 🚀 Getting Started
 
-Create a `.env` file at the project root:
+### Prerequisites
 
-```
-MONGODB_URI=your_mongodb_connection_string
-JWT_SECRET=your_jwt_secret
-JWT_EXPIRES_IN=3
+- Node.js (v20 or higher, for `--env-file` support)
+- npm or a compatible package manager
+- MongoDB (local instance or a cloud service like MongoDB Atlas)
+- Accounts for Stripe, Cloudinary, and an email provider (e.g., SendGrid or Gmail).
+- Groq API Key for the AI assistant.
+
+### Installation & Setup
+
+1.  **Clone the repository:**
+
+    ```bash
+    git clone https://github.com/Arnaudbrice/E-Commerce-MERN-stack-backend.git
+    cd Project-Mern-stack-e-commerce/E-Commerce-MERN-stack-backend
+    ```
+
+2.  **Install dependencies:**
+
+    ```bash
+    npm install
+    ```
+
+3.  **Create an environment file:**
+    Create a `.env` file in the `E-Commerce-MERN-stack-backend` root and add the variables from the example below.
+
+4.  **Run the development server:**
+    ```bash
+    npm run dev
+    ```
+    The API will be available at `http://localhost:3000`.
+
+---
+
+### **🔑 Environment Variables (`.env`)**
+
+```env
+# Server Configuration
+PORT=3000
 NODE_ENV=development
-
-CLOUDINARY_CLOUD_NAME=your_cloud_name
-CLOUDINARY_API_KEY=your_api_key
-CLOUDINARY_API_SECRET=your_api_secret
-
-SENDGRID_API_KEY=your_sendgrid_api_key
-GMAIL_EMAIL=your_gmail_address
-GMAIL_APP_PASSWORD=your_gmail_app_password
-
 FRONTEND_BASE_URL=http://localhost:5173
 
-STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
-STRIPE_SECRET_KEY=your_stripe_secret_key
+# MongoDB Connection
+MONGODB_URI=your_mongodb_connection_string
 
-GROQ_API_KEY=your_groq_api_key
-GROQ_MODEL=llama-3.1-8b-instant
+# JWT Authentication
+JWT_SECRET=your_super_secret_jwt_key
+JWT_EXPIRES_IN=3d
 
-CHAT_RETRIEVE_LIMIT=120
-CHAT_RERANK_LIMIT=30
-CHAT_K=3
-CHAT_BESTSELLER_LIMIT=6
-CHAT_TOKEN_PREFIX=4
+# Stripe API Keys
+STRIPE_SECRET_KEY=sk_test_your_stripe_secret_key
 
-PORT=3000
+# Cloudinary Credentials
+CLOUDINARY_NAME=your_cloudinary_name
+CLOUDINARY_API_KEY=your_cloudinary_api_key
+CLOUDINARY_API_SECRET=your_cloudinary_api_secret
+
+# Email (Nodemailer with Gmail)
+GMAIL_EMAIL=your_gmail_address@gmail.com
+GMAIL_APP_PASSWORD=your_google_app_password
+
+# AI Assistant (Groq)
+GROQ_API_KEY=gsk_your_groq_api_key
 ```
 
-Notes:
+---
 
-- Cookies are used for auth. Your frontend should send `credentials: "include"`.
-- If you see CORS errors, update the `allowOrigins` list in `index.js`.
+## 🤖 AI Shopping Assistant Flow
 
-## API overview
+The chat assistant (`chat.controller.js`) uses a multi-step process to provide intelligent recommendations:
 
-Base paths:
+1.  **Language Detection**: Identifies the user's language (EN/DE).
+2.  **Intent Classification**: Uses Groq's LLaMA 3.1 to determine if the user is searching for a product, asking a question, or making small talk.
+3.  **Entity Extraction**: Extracts key information like categories, price range, and keywords from the user's message.
+4.  **Database Search**: Performs a text search in MongoDB to find matching products.
+5.  **Reranking & Response Generation**: The LLM reranks the search results for relevance and generates a human-friendly response, including product cards formatted in Markdown.
+6.  **Fallback**: If no products are found, it suggests bestsellers or asks clarifying questions.
 
-- `/auth` for authentication
-- `/users` for products, cart, orders
+---
 
-Health check:
+## 📁 API Endpoints
 
-- `GET /health`
+A brief overview of the main API routes. All routes are prefixed with `/`.
 
-Auth:
+| Method       | Endpoint                              | Description                          | Access |
+| :----------- | :------------------------------------ | :----------------------------------- | :----- |
+| **Auth**     |                                       |                                      |        |
+| `POST`       | `/auth/register`                      | Register a new user.                 | Public |
+| `POST`       | `/auth/login`                         | Log in a user.                       | Public |
+| `POST`       | `/auth/logout`                        | Log out a user.                      | User   |
+| `GET`        | `/auth/me`                            | Get the current authenticated user.  | User   |
+| **Products** |                                       |                                      |        |
+| `GET`        | `/users/products`                     | Get all products with pagination.    | Public |
+| `GET`        | `/users/products/:id`                 | Get a single product by ID.          | Public |
+| `POST`       | `/admin/products`                     | Create a new product.                | Admin  |
+| `PUT`        | `/admin/products/:id`                 | Update an existing product.          | Admin  |
+| `DELETE`     | `/admin/products/:id`                 | Delete a product.                    | Admin  |
+| `PUT`        | `/users/products/:id/rating`          | Add or update a product rating.      | User   |
+| **Cart**     |                                       |                                      |        |
+| `GET`        | `/users/cart`                         | Get the user's cart.                 | User   |
+| `POST`       | `/users/cart`                         | Add a product to the cart.           | User   |
+| `POST`       | `/users/cart/create-checkout-session` | Create a Stripe checkout session.    | User   |
+| **Orders**   |                                       |                                      |        |
+| `POST`       | `/users/orders`                       | Create a new order from the cart.    | User   |
+| `GET`        | `/users/orders`                       | Get all orders for the current user. | User   |
+| `GET`        | `/users/orders/:id/invoice`           | Download a PDF invoice for an order. | User   |
+| **Chat**     |                                       |                                      |        |
+| `POST`       | `/chat/message`                       | Send a message to the AI assistant.  | Public |
 
-- `POST /auth/register`
-- `POST /auth/login`
-- `DELETE /auth/logout`
-- `GET /auth/me`
-- `POST /auth/mail-reset-password`
-- `GET /auth/reset-password/:token`
-- `POST /auth/reset-password/:token`
+---
 
-Products:
+## 📄 License
 
-- `GET /users/products` (supports `?search=&page=`)
-- `GET /users/products/categories`
-- `GET /users/products/favorite` (auth)
-- `GET /users/products/:id` (auth)
-- `POST /users/products` (auth, multipart with `image`)
-- `PUT /users/products/:id` (auth, multipart with `image`)
-- `DELETE /users/products/:id` (auth)
-- `PUT /users/products/:id/favorite` (auth)
-- `PUT /users/products/:id/rating` (auth)
-- `PUT /users/products/:id/reduce-stock` (auth)
-
-Cart:
-
-- `GET /users/cart` (auth)
-- `POST /users/cart` (auth)
-- `GET /users/cart/products/:id` (auth)
-- `DELETE /users/cart/products/:id` (auth)
-- `DELETE /users/cart/clear` (auth)
-- `POST /users/cart/create-checkout-session` (auth)
-
-Orders:
-
-- `GET /users/orders` (auth, supports `?page=`)
-- `POST /users/orders` (auth)
-- `GET /users/orders/:id/invoice` (auth, returns PDF)
-
-## Chat assistant flow (chat.controller.js)
-
-Endpoint:
-
-- `POST /chat/message`
-
-How it works (high level):
-
-- Detects language with a simple EN/DE heuristic.
-- Optionally fixes typos with the LLM (if `GROQ_API_KEY` is set).
-- Builds a plan with the LLM (query, price range, categories, k); falls back to a simple plan if LLM is not available.
-- Applies recipient heuristics for gift queries (son/daughter/men/women/kids).
-- If the user asks for a gift but no recipient is clear, returns one short follow-up question.
-- For generic "recommend me" messages, returns bestsellers (sorted by rating then newest).
-- Retrieves candidates from MongoDB using `$text` search (requires a text index); if no hits, falls back to a regex search on title/description/category with plural/prefix tokens.
-- If no matches, falls back to bestsellers, otherwise asks for category/budget.
-- If LLM is available, reranks candidates and can ask one clarifying question.
-- Returns `botResponse` as markdown and a `products` array for the UI.
-
-Notes:
-
-- Set `FRONTEND_BASE_URL` so product links point to the right UI.
-- Recommended text index:
-  `ProductSchema.index({ title: "text", description: "text", category: "text" })`
-- Bestsellers are defined as highest `averageRating` then newest `createdAt`.
-
-Example request/response:
-
-```http
-POST /chat/message
-Content-Type: application/json
-Cookie: token=...
-
-{ "message": "Is a laptop an SSD?" }
-```
-
-```json
-{
-  "botResponse": "Here are a few good matches.\n\n### Recommendations\n\n- **Example Product**\n  - Price: €49.99\n  - Category: Electronics\n  - Image: [![Example Product](https://.../image.png)](http://localhost:5173/product/123)\n",
-  "products": [
-    {
-      "_id": "123",
-      "title": "Example Product",
-      "price": 49.99,
-      "category": "Electronics",
-      "image": "https://.../image.png"
-    }
-  ]
-}
-```
-
-Frontend rendering notes:
-
-- The frontend renders `botResponse` as markdown.
-- The image line is link-wrapped, so clicking the image opens the product page.
-
-## Project structure
-
-```
-controllers/
-db/
-middlewares/
-models/
-routers/
-schemas/
-services/
-utils/
-index.js
-```
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
