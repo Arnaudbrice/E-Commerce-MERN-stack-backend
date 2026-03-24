@@ -23,6 +23,8 @@ import {
   updateOrderStatus,
   createContactMessage,
   sendStatusUpdateEmail,
+  sendOrderConfirmationEmail,
+  getUserLocation,
 } from "../controllers/user.controller.js";
 import uploadFile from "../middlewares/uploadFile.js";
 import validateSchema from "../middlewares/validateSchema.js";
@@ -105,6 +107,13 @@ userRouter
   .route("/orders")
   .get(authenticate, getOrders)
   .post(authenticate, createOrder);
+
+//  route for location detection
+userRouter.get("/location", getUserLocation);
+
+userRouter
+  .route("/orders/send-order-confirmation-mail")
+  .post(sendOrderConfirmationEmail);
 
 userRouter.route("/admin/orders").get(authenticate, isAdmin, getAllOrders);
 
