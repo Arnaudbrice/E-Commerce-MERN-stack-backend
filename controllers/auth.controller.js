@@ -324,7 +324,8 @@ export const addShippingAddress = async (req, res) => {
   const { firstName, lastName, streetAddress, zipCode, city, state, country } =
     req.body;
 
-  const newAddress = {
+  //  Create a new document in the 'Address' collection
+  const newAddress = await Address.create({
     firstName,
     lastName,
     streetAddress,
@@ -332,18 +333,22 @@ export const addShippingAddress = async (req, res) => {
     city,
     state,
     country,
-  };
+  });
 
+  // Push ONLY the new address's ID into the user's addresses array
   const updatedUser = await User.findByIdAndUpdate(
     userId,
     {
-      $push: { addresses: newAddress },
+      $push: { addresses: newAddress._id }, //push the new address _id to the user addresses array
     },
     {
       new: true,
       runValidators: true,
     },
-  ).lean();
+  )
+    .populate("addresses") // Populate to return the full address objects
+    .populate("defaultAddress")
+    .lean();
 
   if (!updatedUser) {
     throw new Error("User Not Found", { cause: 404 });

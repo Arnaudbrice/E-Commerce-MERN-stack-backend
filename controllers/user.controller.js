@@ -1102,6 +1102,244 @@ export const createCheckoutSession = async (req, res) => {
   res.status(200).json({ url: session.url });
 };
 
+export const sendOrderConfirmationEmail = async (req, res) => {
+  const { order_id } = req.body;
+
+  // find order with id and retrieves email of the user who made the order
+  const order = await Order.findById(order_id)
+    .populate("userId")
+    .populate(
+      "products.productId",
+      "title price image description price quantity",
+    )
+    .populate("shippingAddress");
+
+  console.log("order in sendStatusUpdateEmail", order);
+  const userEmail = order?.userId?.email;
+
+  console.log("order in sendStatusUpdateEmail", order);
+  const firstName =
+    order?.shippingAddress?.firstName ||
+    order?.shippingAddress?.companyName ||
+    "" + " " + order?.defaultAddress?.firstName ||
+    "";
+  const lastName = order?.shippingAddress?.lastName || "";
+  const name = `${firstName} ${lastName}`.trim(); // trim removes extra spaces
+
+  const productTablerows = [];
+  for (const product of order.products) {
+    productTablerows.push(
+      `<tr>
+        <td>${product.productId.title}</td>
+        <td>${product.quantity}</td>
+        <td>
+          ${parseFloat(product.price * product.quantity).toFixed(2) + " €"}
+        </td>
+      </tr>`,
+    );
+  }
+
+  // Calculate total: shipping + all products
+  const shippingCosts = parseFloat(order.shippingCosts || 0);
+  const productsTotal = order.products.reduce(
+    (sum, p) => sum + p.price * p.quantity,
+    0,
+  );
+  const totalPrice = shippingCosts + productsTotal;
+
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    port: 587,
+    auth: {
+      user: process.env.GMAIL_EMAIL,
+      pass: process.env.GMAIL_APP_PASSWORD,
+    },
+    tls: {
+      rejectUnauthorized: false,
+    },
+  });
+
+  const msg = {
+    from: `Bon Marché <${process.env.GMAIL_EMAIL}>`,
+    to: `${userEmail}`,
+    replyTo: `${userEmail}`,
+    subject: "Bon Marché - Order created successfully",
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+
+        <style>
+          body {
+            font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f9f9f9;
+            padding: 20px;
+            margin: 0;
+          }
+          .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 30px;
+          }
+          .header {
+            border-bottom: 3px solid #ea580c;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+          }
+          .header h2 {
+            margin: 0;
+            color: #ea580c;
+            font-size: 24px;
+            font-weight: 700;
+          }
+          .field {
+            margin-bottom: 20px;
+          }
+          .field-label {
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 5px;
+            font-size: 14px;
+          }
+
+
+          .field-value {
+            background-color: #f5f5f5;
+            padding: 12px;
+            border-radius: 4px;
+            border-left: 3px solid #ea580c;
+            color: #333;
+            word-break: break-word;
+            font-weight: 400;
+          }
+
+
+
+            table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+      }
+      th {
+        background-color: #ea580c;
+        color: white;
+        padding: 12px;
+        text-align: left;
+        font-weight: 600;
+        border: 1px solid #ddd;
+      }
+
+
+      td {
+        padding: 12px;
+        border: 1px solid #ddd;
+        vertical-align: middle;
+      }
+      tr:nth-child(even) {
+        background-color: #f9f9f9;
+      }
+      tr:hover {
+        background-color: #f0f0f0;
+      }
+      .price_col {
+        text-align: center;
+        font-weight: 600;
+
+      }
+      .qty_col {
+        text-align: center;
+      }
+          .message-content {
+            background-color: #f0f7ff;
+            padding: 15px;
+            border-radius: 4px;
+            border-left: 4px solid #ea380c;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-weight: 400;
+          }
+          .footer {
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 1px solid #ddd;
+            font-size: 12px;
+            color: #999;
+            text-align: center;
+          }
+        </style>
+      </head>
+     <body>
+        <div class="container">
+          <div class="header">
+            <h2>📦 Order Created Successfully</h2>
+          </div>
+
+          <div class="field">
+            <div class="field-label">Hello ${name || ""}</div>
+            <div class="field-value">
+              <p>We have great news! Your order has been created successfully.</p>
+            </div>
+          </div>
+
+          <div class="field">
+            <div class="field-label">Order Details</div>
+
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 50%;">Product</th>
+                  <th>Quantity</th>
+                  <th>Price</th>
+                </tr>
+              </thead>
+              <tbody>
+
+
+                 ${order.products
+                   .map(
+                     (product) => `
+            <tr>
+              <td style="font-weight: 500;">${product.productId.title}</td>
+              <td class="qty_col">${product.quantity}</td>
+              <td class="price_col">${parseFloat(product.price * product.quantity).toFixed(2)} €</td>
+            </tr>
+          `,
+                   )
+                   .join("")}
+              </tbody>
+            </table>
+
+
+
+      <div style="background-color: #f5f5f5; padding: 15px; border-left: 4px solid #ea580c; margin: 20px 0;">
+        <p style="margin: 0;"><strong> Total Price (shipping costs included):</strong> <span style="font-size: 18px; color: #ea580c; font-weight: bold;">${totalPrice.toFixed(2)} €</span></p>
+      </div>
+
+
+          <div class="footer">
+
+            <p>Thank you for your order! </p>
+            <p>&copy;${new Date().getFullYear()} Bon Marché. All rights reserved.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `,
+  };
+
+  await transporter.sendMail(msg);
+  res
+    .status(200)
+    .json({ message: "Order confirmation email sent successfully" });
+};
+
 //********** Contact Messages **********
 /**
  * @desc Handles contact message creation and sends formatted email
@@ -1397,12 +1635,12 @@ export const sendStatusUpdateEmail = async (req, res) => {
       tr:hover {
         background-color: #f0f0f0;
       }
-      .price-col {
-        text-align: right;
+      .price_col {
+        text-align: center;
         font-weight: 600;
-        color: white;
+
       }
-      .qty-col {
+      .qty_col {
         text-align: center;
       }
           .message-content {
@@ -1457,8 +1695,8 @@ export const sendStatusUpdateEmail = async (req, res) => {
                      (product) => `
             <tr>
               <td style="font-weight: 500;">${product.productId.title}</td>
-              <td class="qty-col">${product.quantity}</td>
-              <td class="price-col">${parseFloat(product.price * product.quantity).toFixed(2)} €</td>
+              <td class="qty_col">${product.quantity}</td>
+              <td class="price_col">${parseFloat(product.price * product.quantity).toFixed(2)} €</td>
             </tr>
           `,
                    )
@@ -1486,4 +1724,31 @@ export const sendStatusUpdateEmail = async (req, res) => {
 
   await transporter.sendMail(msg);
   res.status(200).json({ message: "Status update email sent successfully" });
+};
+
+export const getUserLocation = async (req, res) => {
+  try {
+    // Get the user's IP. 'x-forwarded-for' is crucial for hosting services like Render.
+    const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
+
+    // Handle localhost IP for development (returns a default)
+    if (ip === "::1" || ip === "127.0.0.1") {
+      return res
+        .status(200)
+        .json({ country: "Germany", country_name: "Germany" });
+    }
+
+    // Server-side call to the external API
+    const response = await fetch(`https://ipapi.co/json/${ip}`);
+    if (!response.ok) {
+      throw new Error("Failed to fetch location data from ipapi.");
+    }
+    const locationData = await response.json();
+
+    res.status(200).json(locationData);
+  } catch (error) {
+    console.error("IP location error:", error);
+    // Fallback to a default if detection fails
+    res.status(500).json({ country_name: "Unknown" });
+  }
 };
