@@ -321,6 +321,7 @@ export const getAllOrders = async (req, res) => {
   let query = {};
 
   if (search) {
+    // Create a case-insensitive regex for the search term, escaping special characters to prevent regex injection attacks (if search = "price.*", escapeRegex(search) → "price\\.\\*", and new RegExp(...,"i") → /price\.\*/i (matches the literal text price.*, case-insensitively).)
     const rx = new RegExp(escapeRegex(search), "i");
 
     // 1) Find users matching email / name/companyName
@@ -376,6 +377,7 @@ export const getAllOrders = async (req, res) => {
       select: "email defaultAddress",
       populate: { path: "defaultAddress" },
     }) // Optionally populate user info
+    .sort({ createdAt: -1 }) // Sort by createdAt descending
     .skip((currentPageNumber - 1) * itemPerPage)
     .limit(itemPerPage);
 
@@ -438,6 +440,7 @@ export const getOrders = async (req, res) => {
 
   const ordersForCurrentPage = await Order.find(query)
     .populate("products.productId")
+    .sort({ createdAt: -1 }) // Sort by createdAt descending
     .skip((currentPageNumber - 1) * itemPerPage)
     .limit(itemPerPage);
 

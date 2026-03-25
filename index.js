@@ -74,7 +74,7 @@ app.use(cors(corsOptions));
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
 
-  max: 1000, // limit each IP to 200 requests per windowMs (1000 dev , 200 prod)
+  max: process.env.NODE_ENV === "production" ? 200 : 1000, // limit each IP to 150 requests per windowMs (1000 dev , 200 prod)
 
   message: "Too many requests from this IP, please try again later.",
   standardHeaders: true,
@@ -83,7 +83,7 @@ const limiter = rateLimit({
 
 const chatLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 150, // limit each IP to 50 requests per windowMs
+  max: process.env.NODE_ENV === "production" ? 50 : 150, // limit each IP to 50 requests per windowMs (150 dev , 50 prod)
   message: "Too many requests from this IP, please try again later.",
   standardHeaders: true,
   legacyHeaders: false,
@@ -91,7 +91,7 @@ const chatLimiter = rateLimit({
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 300, //dev 300, prod 50
+  max: process.env.NODE_ENV === "production" ? 100 : 500, // limit each IP to 150 requests per windowMs (500 dev , 100 prod)
   standardHeaders: true,
   legacyHeaders: false,
 });
