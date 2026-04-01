@@ -43,10 +43,10 @@ const productSchema = new mongoose.Schema(
       default: 0,
       min: [0, "Stock cannot be negative"],
     },
-    isFavorite: {
+    /* isFavorite: {
       type: Boolean,
       default: false,
-    },
+    }, */
 
     userId: {
       type: mongoose.Schema.Types.ObjectId,

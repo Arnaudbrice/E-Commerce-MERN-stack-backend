@@ -847,27 +847,39 @@ export const getProductCategories = async (req, res) => {
 
 export const updateProductFavorite = async (req, res) => {
   const { isFavorite } = req.body;
+  const userId = req.user._id;
   const { id } = req.params;
 
   console.log("productId", id);
 
-  const updatedProduct = await Product.findByIdAndUpdate(
-    id,
-    { $set: { isFavorite } },
-    { new: true },
-  ); //return the updated document
-  if (!updatedProduct) {
-    throw new Error("Product not found", { cause: 404 });
+  const update =
+    isFavorite ?
+      { $addToSet: { favoriteProducts: id } }
+    : { $pull: { favoriteProducts: id } }; //$addToSet adds the product id to the favoriteProducts array if it's not already present, while $pull removes it if isFavorite is false
+
+  const updatedUser = await User.findByIdAndUpdate(userId, update, {
+    new: true,
+  }); //return the updated document
+  if (!updatedUser) {
+    throw new Error("const first = useRef(second) not found", { cause: 404 });
   }
-  res.status(200).json(updatedProduct);
+  res.status(200).json({ updatedUser: updatedUser });
 };
 
 export const getFavoriteProducts = async (req, res) => {
-  const favoriteProducts = await Product.find({ isFavorite: true });
+  const userId = req.user._id;
+
+  const user = await User.findById(userId).populate("favoriteProducts");
+
+  res.json({
+    favoriteProducts: user.favoriteProducts,
+    numberOfFavoriteProducts: user.favoriteProducts.length,
+  });
+  /*   const favoriteProducts = await Product.find({ isFavorite: true });
 
   const numberOfFavoriteProducts = favoriteProducts.length;
 
-  res.json({ favoriteProducts, numberOfFavoriteProducts });
+  res.json({ favoriteProducts, numberOfFavoriteProducts }); */
 };
 
 /****************************************
