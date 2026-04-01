@@ -30,6 +30,7 @@ const userSchema = new mongoose.Schema({
     ref: "Cart",
     required: true,
   },
+  favoriteProducts: [{ type: mongoose.Schema.Types.ObjectId, ref: "Product" }],
   role: {
     type: String,
     enum: ["user", "admin"],

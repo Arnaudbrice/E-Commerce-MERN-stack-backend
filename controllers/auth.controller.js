@@ -7,6 +7,7 @@ import nodemailer from "nodemailer";
 import crypto from "crypto";
 import mongoose from "mongoose";
 import Address from "../models/Address.js";
+import Cart from "../models/Cart.js";
 
 //********** POST /auth/register **********
 
@@ -27,12 +28,25 @@ export const register = async (req, res) => {
   const hashedPassword = await bcrypt.hash(password, salt);
 
   // create a new user
-  const user = await User.create({
-    email: email,
+  // const user = await User.create({
+  //   email: email,
+  //   password: hashedPassword,
+  // });
+
+  // console.log("user", user);
+
+  // create a new user instance (generates _id without saving)
+  let user = new User({
+    email,
     password: hashedPassword,
   });
 
-  console.log("user", user);
+  // create a cart linked to the user's future _id
+  const cart = await Cart.create({ userId: user._id, products: [] });
+
+  // assign the cart and persist the user
+  user.cartId = cart._id;
+  user = await user.save();
 
   // convert the user document to an object to be able to delete the password property
   const newUser = user.toObject();
