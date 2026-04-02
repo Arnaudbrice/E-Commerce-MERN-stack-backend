@@ -939,6 +939,7 @@ export const getProductFromCart = async (req, res) => {
 export const addProductToCart = async (req, res) => {
   const userId = req.user._id;
   const { productId, quantity } = req.body;
+  console.log("quantity", quantity);
 
   if (!productId || !quantity || quantity < 1) {
     throw new Error("Product ID and valid quantity are required.", {
@@ -948,6 +949,10 @@ export const addProductToCart = async (req, res) => {
 
   //  Verify if the product exists
   const product = await Product.findById(productId);
+
+  if (product.stock === 0) {
+    throw new Error("product is out of stock", { cause: 400 });
+  }
 
   console.log("product in addProductToCart", product);
   if (!product) {
