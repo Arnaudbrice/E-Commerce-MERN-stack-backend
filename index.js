@@ -111,6 +111,8 @@ app.use(cookieParser());
 // Serve static files from the public folder
 app.use(express.static(path.join(__dirname, "public")));
 
+app.set("trust proxy", 1); // Trust first proxy (if behind a proxy like in production) to get the correct client IP for rate limiting and secure cookies
+
 // Health check endpoint
 app.get("/health", async (req, res) => {
   res.json({ message: "Running" });
