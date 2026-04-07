@@ -99,7 +99,6 @@ export const login = async (req, res) => {
     httpOnly: true, //The cookie can’t be accessed by JavaScript (for security).
     secure: process.env.NODE_ENV === "production", //(in production) → The cookie is only sent over HTTPS.
     sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", //(in production) → Allows cross-site requests (needed if frontend and backend run on different domains).
-    partitioned: true, // Hilft bei modernen Browser-Privacy-Regeln
   });
 
   // send the response back to the client including the cookie set in the response header
@@ -114,7 +113,6 @@ export const logout = async (req, res) => {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-    partitioned: true, //help with modern browser privacy rules, ensures the cookie is treated as a partitioned cookie, which can help reduce certain types of cross-site request forgery (CSRF) attacks and enhance user privacy by isolating the cookie to the specific context of the site that set it.
   });
 
   res.status(204).json({ message: "Logged out successfully" });
