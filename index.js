@@ -33,6 +33,7 @@ app.use(helmet()); //activate all security headers
 // An array that lists the origins that are allowed to make cross‑origin requests to our API.
 const allowOrigins = [
   "https://e-commerce-mern-stack-frontend-q5j0.onrender.com",
+  "https://bonmarche.dev-with-arnaud.work", //allow my frontend subdomain
   "http://localhost:5173",
   "https://stripe.com",
 ];
