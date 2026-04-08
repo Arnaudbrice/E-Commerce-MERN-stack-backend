@@ -6,12 +6,6 @@ import User from "../models/User.js";
 const authenticate = async (req, res, next) => {
   const { token } = req.cookies;
 
-  // Safari iOS fallback: read from Authorization header
-  const authHeader = req.headers.authorization;
-  if (authHeader?.startsWith("Bearer ")) {
-    token = authHeader.split(" ")[1];
-  }
-
   if (!token) {
     throw new Error("Not Authenticated,\nPlease Login First", { cause: 401 });
   }

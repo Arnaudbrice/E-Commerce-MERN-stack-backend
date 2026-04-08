@@ -99,6 +99,7 @@ export const login = async (req, res) => {
     httpOnly: true, //The cookie can’t be accessed by JavaScript (for security).
     secure: process.env.NODE_ENV === "production", //(in production) → The cookie is only sent over HTTPS.
     sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", //(in production) → Allows cross-site requests (needed if frontend and backend run on different domains).
+    maxAge: Number(process.env.JWT_EXPIRES_IN) * 24 * 60 * 60 * 1000, // 3 days in ms
   });
 
   // send the response back to the client including the cookie set in the response header
