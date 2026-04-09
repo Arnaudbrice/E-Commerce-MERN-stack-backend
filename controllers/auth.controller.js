@@ -64,7 +64,10 @@ export const register = async (req, res) => {
 export const login = async (req, res) => {
   const { email, password } = req.body;
 
-  const user = await User.findOne({ email }).select("+password");
+  const user = await User.findOne({ email })
+    .select("+password")
+    .populate("addresses")
+    .populate("defaultAddress");
 
   if (!user) {
     throw new Error("Invalid Credentials", { cause: 400 });
@@ -348,6 +351,31 @@ export const addShippingAddress = async (req, res) => {
 
   const { firstName, lastName, streetAddress, zipCode, city, state, country } =
     req.body;
+
+  // check if the user already added this address as a shipping address to prevent duplicates (based on the firstName, lastName, streetAddress, zipCode, city, state and  country )
+
+  const currentUser = await User.findById(userId).select("addresses").lean();
+  if (!currentUser) {
+    throw new Error("User Not Found", { cause: 404 });
+  }
+
+  // Case-insensitive duplicate check
+  const esc = (v = "") => String(v).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); // Escape special characters for regex matching
+
+  const existingAddress = await Address.findOne({
+    _id: { $in: currentUser.addresses },
+    firstName: { $regex: `^${esc(firstName)}$`, $options: "i" },
+    lastName: { $regex: `^${esc(lastName)}$`, $options: "i" },
+    streetAddress: { $regex: `^${esc(streetAddress)}$`, $options: "i" },
+    zipCode: { $regex: `^${esc(zipCode)}$`, $options: "i" },
+    city: { $regex: `^${esc(city)}$`, $options: "i" },
+    state: { $regex: `^${esc(state)}$`, $options: "i" },
+    country: { $regex: `^${esc(country)}$`, $options: "i" },
+  });
+
+  if (existingAddress) {
+    throw new Error("Shipping address already exists", { cause: 400 });
+  }
 
   //  Create a new document in the 'Address' collection
   const newAddress = await Address.create({
