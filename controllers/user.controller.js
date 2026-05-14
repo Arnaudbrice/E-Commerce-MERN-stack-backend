@@ -3,9 +3,6 @@ import Product from "../models/Product.js";
 import User from "../models/User.js";
 
 import chalk from "chalk";
-import { Resend } from "resend";
-
-import { createGmailTransporter } from "../utils/createGmailTransporter.js";
 
 import fs from "fs";
 import path, { sep } from "path";
@@ -1181,7 +1178,20 @@ export const sendOrderConfirmationEmail = async (req, res) => {
       rejectUnauthorized: false,
     },
   }); */
-  const transporter = await createGmailTransporter();
+
+  let transporter = nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
+    auth: {
+      type: "OAuth2",
+      user: `${process.env.GMAIL_EMAIL}`,
+      accessToken: `${process.env.GMAIL_ACCESS_TOKEN}`,
+      clientId: `${process.env.GMAIL_CLIENT_ID}`,
+      clientSecret: `${process.env.GMAIL_CLIENT_SECRET}`,
+      refreshToken: `${process.env.GMAIL_REFRESH_TOKEN}`,
+    },
+  });
 
   const msg = {
     from: `Bon Marché <${process.env.GMAIL_EMAIL}>`,
@@ -1403,7 +1413,19 @@ export const createContactMessage = async (req, res) => {
     },
   }); */
 
-  const transporter = await createGmailTransporter();
+  let transporter = nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
+    auth: {
+      type: "OAuth2",
+      user: `${process.env.GMAIL_EMAIL}`,
+      accessToken: `${process.env.GMAIL_ACCESS_TOKEN}`,
+      clientId: `${process.env.GMAIL_CLIENT_ID}`,
+      clientSecret: `${process.env.GMAIL_CLIENT_SECRET}`,
+      refreshToken: `${process.env.GMAIL_REFRESH_TOKEN}`,
+    },
+  });
 
   const msg = {
     from: `Bon Marché <${process.env.GMAIL_EMAIL}>`,
@@ -1584,7 +1606,20 @@ export const sendStatusUpdateEmail = async (req, res) => {
     },
   }); */
   //create a transporter with google oauth2 authentication (google oauth2 is required to send email with nodemailer using gmail)
-  const transporter = await createGmailTransporter();
+  let transporter = nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
+    auth: {
+      type: "OAuth2",
+      user: `${process.env.GMAIL_EMAIL}`,
+      accessToken: `${process.env.GMAIL_ACCESS_TOKEN}`,
+      clientId: `${process.env.GMAIL_CLIENT_ID}`,
+      clientSecret: `${process.env.GMAIL_CLIENT_SECRET}`,
+      refreshToken: `${process.env.GMAIL_REFRESH_TOKEN}`,
+    },
+  });
+
   const msg = {
     from: `Bon Marché <${process.env.GMAIL_EMAIL}>`,
     to: `${userEmail}`,
