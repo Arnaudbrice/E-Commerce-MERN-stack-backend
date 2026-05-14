@@ -8,7 +8,9 @@ import crypto from "crypto";
 import mongoose from "mongoose";
 import Address from "../models/Address.js";
 import Cart from "../models/Cart.js";
+import { Resend } from "resend";
 
+const resend = new Resend(process.env.RESEND_API_KEY);
 //********** POST /auth/register **********
 
 export const register = async (req, res) => {
@@ -168,45 +170,13 @@ export const sendMail = async (req, res) => {
 
   const baseUrl = req.protocol + "://" + req.get("host");
 
-  /*   const transporter = nodemailer.createTransport({
-    service: "gmail",
-    port: 587,
-    auth: {
-      user: process.env.GMAIL_EMAIL,
-      pass: process.env.GMAIL_APP_PASSWORD,
-    },
-    tls: {
-      rejectUnauthorized: false,
-    },
-  }); */
-
-  let transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
-    auth: {
-      type: "OAuth2",
-      user: `${process.env.GMAIL_EMAIL}`,
-      accessToken: `${process.env.GMAIL_ACCESS_TOKEN}`,
-      clientId: `${process.env.GMAIL_CLIENT_ID}`,
-      clientSecret: `${process.env.GMAIL_CLIENT_SECRET}`,
-      refreshToken: `${process.env.GMAIL_REFRESH_TOKEN}`,
-    },
+  await resend.emails.send({
+    from: "Bon Marché<noreply@dev-with-arnaud.work>", // sender (display only)
+    to: user.email, // recipient
+    replyTo: email,
+    subject: "Bon Marché - Password reset request",
+    html: `<p>Reset Your Password: <a href="${process.env.FRONTEND_BASE_URL}/reset-password/${token}"><strong>Click Here</strong></a></p>`,
   });
-  const msg = {
-    from: process.env.GMAIL_EMAIL, // Change to your recipient
-
-    to: user.email,
-
-    // cc: user.email,
-    subject: "Fullstack E-commerce - Password reset request",
-
-    html: `<p>Reset Your Password: <a href="${process.env.FRONTEND_BASE_URL}/reset-password/${token}"><strong>Click Here</strong></a></p>`, //html body
-  };
-
-  // await sgMail.send(msg);
-
-  await transporter.sendMail(msg);
   res
     .status(200)
     .json({ message: "Email for resetting password sent successfully" });

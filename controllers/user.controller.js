@@ -16,6 +16,7 @@ import { getPagination } from "../utils/pagination.js";
 
 import sanitizeHtml from "sanitize-html";
 import nodemailer from "nodemailer";
+import { Resend } from "resend";
 
 //! return a cross-platform valid absolute path to the current file (import.meta.url returns full url of the current file)-> /Users/Arnaud/Desktop/wdg23/Project-Mern-stack-e-commerce/E-Commerce-MERN-stack-backend/controllers/user.controller.js
 const __filename = fileURLToPath(import.meta.url);
@@ -25,6 +26,8 @@ const __dirname = path.dirname(__filename);
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 const itemPerPage = 10; //display 10 products per page
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 /****************************************
  *           products
@@ -1179,22 +1182,8 @@ export const sendOrderConfirmationEmail = async (req, res) => {
     },
   }); */
 
-  let transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
-    auth: {
-      type: "OAuth2",
-      user: `${process.env.GMAIL_EMAIL}`,
-      accessToken: `${process.env.GMAIL_ACCESS_TOKEN}`,
-      clientId: `${process.env.GMAIL_CLIENT_ID}`,
-      clientSecret: `${process.env.GMAIL_CLIENT_SECRET}`,
-      refreshToken: `${process.env.GMAIL_REFRESH_TOKEN}`,
-    },
-  });
-
-  const msg = {
-    from: `Bon Marché <${process.env.GMAIL_EMAIL}>`,
+  await resend.emails.send({
+    from: "Bon Marché <noreply@dev-with-arnaud.work>", // sender (display only)
     to: `${userEmail}`,
     replyTo: `${userEmail}`,
     subject: "Bon Marché - Order created successfully",
@@ -1366,9 +1355,7 @@ export const sendOrderConfirmationEmail = async (req, res) => {
       </body>
       </html>
     `,
-  };
-
-  await transporter.sendMail(msg);
+  });
   res
     .status(200)
     .json({ message: "Order confirmation email sent successfully" });
@@ -1401,36 +1388,9 @@ export const createContactMessage = async (req, res) => {
     allowedAttributes: {},
   });
 
-  /*   const transporter = nodemailer.createTransport({
-    service: "gmail",
-    port: 587,
-    auth: {
-      user: process.env.GMAIL_EMAIL,
-      pass: process.env.GMAIL_APP_PASSWORD,
-    },
-    tls: {
-      rejectUnauthorized: false,
-    },
-  }); */
-
-  let transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
-    auth: {
-      type: "OAuth2",
-      user: `${process.env.GMAIL_EMAIL}`,
-      accessToken: `${process.env.GMAIL_ACCESS_TOKEN}`,
-      clientId: `${process.env.GMAIL_CLIENT_ID}`,
-      clientSecret: `${process.env.GMAIL_CLIENT_SECRET}`,
-      refreshToken: `${process.env.GMAIL_REFRESH_TOKEN}`,
-    },
-  });
-
-  const msg = {
-    from: `Bon Marché <${process.env.GMAIL_EMAIL}>`,
+  await resend.emails.send({
+    from: "Bon Marché Contact<noreply@dev-with-arnaud.work>", // sender (display only)
     to: `Bon Marché <${process.env.GMAIL_EMAIL}>`,
-
     replyTo: email,
     subject: `Bon Marché - Contact Form: ${cleanSubject}`,
     html: `
@@ -1533,19 +1493,7 @@ export const createContactMessage = async (req, res) => {
       </body>
       </html>
     `,
-  };
-
-  await transporter.sendMail(msg);
-
-  /* const resend = new Resend(process.env.RESEND_API_KEY);
-
-await resend.emails.send({
-  from: "Bon Marché <contact@bonmarche.dev-with-arnaud.work>", // sender (display only)
-  to: process.env.GMAIL_EMAIL,   // ← YOUR Gmail, where you'll receive it
-  replyTo: email,                // ← visitor's email, so you can reply to them
-  subject: `Bon Marché - Contact Form: ${cleanSubject}`,
-  html: `...`,
-}); */
+  });
 
   res.status(200).json({ message: "Contact message sent successfully" });
 };
@@ -1594,34 +1542,8 @@ export const sendStatusUpdateEmail = async (req, res) => {
   );
   const totalPrice = shippingCosts + productsTotal;
 
-  /*   const transporter = nodemailer.createTransport({
-    service: "gmail",
-    port: 587,
-    auth: {
-      user: process.env.GMAIL_EMAIL,
-      pass: process.env.GMAIL_APP_PASSWORD,
-    },
-    tls: {
-      rejectUnauthorized: false,
-    },
-  }); */
-  //create a transporter with google oauth2 authentication (google oauth2 is required to send email with nodemailer using gmail)
-  let transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
-    auth: {
-      type: "OAuth2",
-      user: `${process.env.GMAIL_EMAIL}`,
-      accessToken: `${process.env.GMAIL_ACCESS_TOKEN}`,
-      clientId: `${process.env.GMAIL_CLIENT_ID}`,
-      clientSecret: `${process.env.GMAIL_CLIENT_SECRET}`,
-      refreshToken: `${process.env.GMAIL_REFRESH_TOKEN}`,
-    },
-  });
-
-  const msg = {
-    from: `Bon Marché <${process.env.GMAIL_EMAIL}>`,
+  await resend.emails.send({
+    from: "Bon Marché<noreply@dev-with-arnaud.work>", // sender (display only)
     to: `${userEmail}`,
     replyTo: `${userEmail}`,
     subject: `Bon Marché - Order Status Update: ${newStatus}`,
@@ -1793,9 +1715,7 @@ export const sendStatusUpdateEmail = async (req, res) => {
       </body>
       </html>
     `,
-  };
-
-  await transporter.sendMail(msg);
+  });
   res.status(200).json({ message: "Status update email sent successfully" });
 };
 
