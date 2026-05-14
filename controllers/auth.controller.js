@@ -8,7 +8,7 @@ import crypto from "crypto";
 import mongoose from "mongoose";
 import Address from "../models/Address.js";
 import Cart from "../models/Cart.js";
-import { createGmailTransporter } from "../utils/createGmailTransporter.js";
+
 //********** POST /auth/register **********
 
 export const register = async (req, res) => {
@@ -180,7 +180,19 @@ export const sendMail = async (req, res) => {
     },
   }); */
 
-  const transporter = await createGmailTransporter();
+  let transporter = nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
+    auth: {
+      type: "OAuth2",
+      user: `${process.env.GMAIL_EMAIL}`,
+      accessToken: `${process.env.GMAIL_ACCESS_TOKEN}`,
+      clientId: `${process.env.GMAIL_CLIENT_ID}`,
+      clientSecret: `${process.env.GMAIL_CLIENT_SECRET}`,
+      refreshToken: `${process.env.GMAIL_REFRESH_TOKEN}`,
+    },
+  });
   const msg = {
     from: process.env.GMAIL_EMAIL, // Change to your recipient
 
