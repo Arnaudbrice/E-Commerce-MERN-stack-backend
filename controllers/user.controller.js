@@ -3,6 +3,9 @@ import Product from "../models/Product.js";
 import User from "../models/User.js";
 
 import chalk from "chalk";
+import { Resend } from "resend";
+
+import { createGmailTransporter } from "../utils/createGmailTransporter.js";
 
 import fs from "fs";
 import path, { sep } from "path";
@@ -1167,7 +1170,7 @@ export const sendOrderConfirmationEmail = async (req, res) => {
   );
   const totalPrice = shippingCosts + productsTotal;
 
-  const transporter = nodemailer.createTransport({
+  /*   const transporter = nodemailer.createTransport({
     service: "gmail",
     port: 587,
     auth: {
@@ -1177,7 +1180,8 @@ export const sendOrderConfirmationEmail = async (req, res) => {
     tls: {
       rejectUnauthorized: false,
     },
-  });
+  }); */
+  const transporter = await createGmailTransporter();
 
   const msg = {
     from: `Bon Marché <${process.env.GMAIL_EMAIL}>`,
@@ -1387,7 +1391,7 @@ export const createContactMessage = async (req, res) => {
     allowedAttributes: {},
   });
 
-  const transporter = nodemailer.createTransport({
+  /*   const transporter = nodemailer.createTransport({
     service: "gmail",
     port: 587,
     auth: {
@@ -1397,7 +1401,9 @@ export const createContactMessage = async (req, res) => {
     tls: {
       rejectUnauthorized: false,
     },
-  });
+  }); */
+
+  const transporter = await createGmailTransporter();
 
   const msg = {
     from: `Bon Marché <${process.env.GMAIL_EMAIL}>`,
@@ -1508,6 +1514,17 @@ export const createContactMessage = async (req, res) => {
   };
 
   await transporter.sendMail(msg);
+
+  /* const resend = new Resend(process.env.RESEND_API_KEY);
+
+await resend.emails.send({
+  from: "Bon Marché <contact@bonmarche.dev-with-arnaud.work>", // sender (display only)
+  to: process.env.GMAIL_EMAIL,   // ← YOUR Gmail, where you'll receive it
+  replyTo: email,                // ← visitor's email, so you can reply to them
+  subject: `Bon Marché - Contact Form: ${cleanSubject}`,
+  html: `...`,
+}); */
+
   res.status(200).json({ message: "Contact message sent successfully" });
 };
 
@@ -1555,7 +1572,7 @@ export const sendStatusUpdateEmail = async (req, res) => {
   );
   const totalPrice = shippingCosts + productsTotal;
 
-  const transporter = nodemailer.createTransport({
+  /*   const transporter = nodemailer.createTransport({
     service: "gmail",
     port: 587,
     auth: {
@@ -1565,8 +1582,9 @@ export const sendStatusUpdateEmail = async (req, res) => {
     tls: {
       rejectUnauthorized: false,
     },
-  });
-
+  }); */
+  //create a transporter with google oauth2 authentication (google oauth2 is required to send email with nodemailer using gmail)
+  const transporter = await createGmailTransporter();
   const msg = {
     from: `Bon Marché <${process.env.GMAIL_EMAIL}>`,
     to: `${userEmail}`,
