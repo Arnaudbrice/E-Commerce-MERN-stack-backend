@@ -357,7 +357,7 @@ export const addShippingAddress = async (req, res) => {
   });
 
   if (existingAddress) {
-    throw new Error("Shipping address already exists", { cause: 400 });
+    throw new Error("Shipping address already exists", { cause: 409 });
   }
 
   //  Create a new document in the 'Address' collection
