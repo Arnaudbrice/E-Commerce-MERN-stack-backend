@@ -170,8 +170,7 @@ export const updateProductStock = async (req, res) => {
   const quantity = Number(req.body.quantity);
   const userId = req.user._id;
 
-  // const product = await Product.findOne({ _id: id });
-
+  // best way to avoid race condition when multiple users try to update the stock of the same product at the same time is to use atomic operations provided by the database, such as $inc in MongoDB or increment/decrement in Sequelize
   const product = await Product.findByIdAndUpdate(
     id,
     { $inc: { stock: -quantity } }, //! Use $inc to decrement 'stock' by 'quantity' and stock:quantity for incrementation
@@ -180,6 +179,12 @@ export const updateProductStock = async (req, res) => {
   );
   if (!product) {
     throw new Error("Product Not Found", { cause: 404 });
+  }
+
+  if (product.stock < quantity) {
+    throw new Error("Product stock is not enough", {
+      cause: 400,
+    });
   }
 
   console.log(chalk.yellow("product after payment"), product);
@@ -514,24 +519,27 @@ export const createOrder = async (req, res) => {
 
   const user = await User.findById(userId).populate("cartId");
 
-  let cart = user?.cartId;
+  if (!user) {
+    throw new Error("User not found", { cause: 404 });
+  }
+
+  /*   let cart = user?.cartId;
 
   if (!cart) {
     cart = await Cart.findOne({ userId }); // fallback
     if (!cart) {
       throw new Error("User or cart not found", { cause: 404 });
     }
-  }
+  } */
 
-  /* if (!user || !user.cartId) {
-    throw new Error("User or cart not found", { cause: 404 });
-  }
- */
-  // const cart = user.cartId;
+  const cart = await findActiveCartForUser(userId, false);
 
-  if (!cart.products || cart.products.length === 0) {
+  if (!cart || !cart.products || cart.products.length === 0) {
     throw new Error("Cart is empty, cannot create order", { cause: 400 });
   }
+
+  // keep user.cartId synced with the cart actually used for order creation
+  await User.findByIdAndUpdate(userId, { cartId: cart._id });
 
   const cartItems = cart.products.map((item) => {
     return {
@@ -545,24 +553,17 @@ export const createOrder = async (req, res) => {
   });
 
   // create order
-  let order;
+  const payload = {
+    userId: userId,
+    products: cartItems,
+    shippingAddress: shippingAddress,
+    shippingCosts: shippingCosts,
+  };
   if (user.role === "admin") {
-    order = await Order.create({
-      userId: userId,
-      products: cartItems,
-      shippingAddress,
-      shippingCosts,
-      isAdminOrder: true, // by setting this flag, It will ignore the shippingAddress field firstName and lastName for admin orders
-    });
-  } else {
-    order = await Order.create({
-      userId: userId,
-      products: cartItems, // cartItems is a copy of the cart's products at order time
-      shippingAddress,
-      shippingCosts,
-    });
+    payload.isAdminOrder = true; // by setting this flag, It will ignore the shippingAddress field firstName and lastName for admin orders
   }
 
+  const order = await Order.create(payload);
   console.log(chalk.green("Order created successfully:"), order);
 
   // Decrement stock of the successfully ordered products in parallel
@@ -1057,6 +1058,29 @@ export const clearUserCart = async (req, res) => {
  *           payment
  ****************************************/
 
+const findActiveCartForUser = async (userId, withPopulate = false) => {
+  let query = Cart.findOne({
+    userId: userId,
+    "products.0": { $exists: true },
+  }).sort({ _id: -1 });
+
+  if (withPopulate) {
+    query = query.populate("products.productId");
+  }
+
+  let cart = await query;
+
+  if (!cart) {
+    query = Cart.findOne({ userId: userId }).sort({ _id: -1 });
+    if (withPopulate) {
+      query = query.populate("products.productId");
+    }
+    cart = await query;
+  }
+
+  return cart;
+};
+
 //********** POST /users/cart/create-checkout-session **********
 
 export const createCheckoutSession = async (req, res) => {
@@ -1065,13 +1089,18 @@ export const createCheckoutSession = async (req, res) => {
   const userId = req.user._id;
 
   // only trust cartData from the server side (no need to trust the client -> cartList can be manipulated, so we will not use it here)
-  const cartData = await Cart.findOne({ userId }).populate(
+  /*   const cartData = await Cart.findOne({ userId }).populate(
     "products.productId",
-  );
+  ); */
+
+  const cartData = await findActiveCartForUser(userId, true);
 
   if (!cartData || !cartData.products.length) {
     throw new Error("Cart Is Empty", { cause: 400 });
   }
+
+  // keep user.cartId synced with the cart actually used for checkout
+  await User.findByIdAndUpdate(userId, { cartId: cartData._id });
 
   // Create line items from cart products
   const lineItems = cartData.products.map((item) => {
@@ -1118,7 +1147,7 @@ export const createCheckoutSession = async (req, res) => {
 
     // Billing Address Collection for Klarna often required
     // billing_address_collection: "required",
-    success_url: `${process.env.FRONTEND_BASE_URL}/cart?success=true`, // Redirect to cart page after payment
+    success_url: `${process.env.FRONTEND_BASE_URL}/cart?success=true&session_id={CHECKOUT_SESSION_ID}`, // Redirect to cart page after payment (CHECKOUT_SESSION_ID is a placeholder that Stripe replaces with the actual session ID)
     cancel_url: `${process.env.FRONTEND_BASE_URL}/cart?canceled=true`, // Redirect to cart page after payment
   });
 
