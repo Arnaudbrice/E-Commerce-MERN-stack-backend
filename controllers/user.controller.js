@@ -17,6 +17,7 @@ import { getPagination } from "../utils/pagination.js";
 import sanitizeHtml from "sanitize-html";
 import nodemailer from "nodemailer";
 import { Resend } from "resend";
+import { calculateShippingCost } from "../utils/shippingCost.js";
 
 //! return a cross-platform valid absolute path to the current file (import.meta.url returns full url of the current file)-> /Users/Arnaud/Desktop/wdg23/Project-Mern-stack-e-commerce/E-Commerce-MERN-stack-backend/controllers/user.controller.js
 const __filename = fileURLToPath(import.meta.url);
@@ -506,7 +507,8 @@ export const createOrder = async (req, res) => {
   const userId = req.user._id;
 
   console.log("userId in createOrder", userId);
-  const { shippingAddress, shippingCosts } = req.body;
+  // const { shippingAddress, shippingCosts } = req.body;
+  const { shippingAddress } = req.body;
 
   // !note: after populating cartId, cartId becomes a Cart document that can be save using user.cartId.save()
 
@@ -548,9 +550,13 @@ export const createOrder = async (req, res) => {
       title: item.title,
       description: item.description,
       price: item.price,
+      weight: item?.productId?.weight ?? item.weight,
       quantity: item.quantity,
     };
   });
+
+  // calculate shipping cost in the backend to prevent malicious user from manipulating the shipping cost in the request body to get a lower shipping cost (never trust the client, always validate and recalculate important data in the backend)
+  const shippingCosts = calculateShippingCost(cartItems, shippingAddress);
 
   // create order
   const payload = {
@@ -602,6 +608,9 @@ export const getOrderInvoice = async (req, res, next) => {
     const admin = await User.findOne({ role: "admin" }).populate(
       "defaultAddress",
     );
+    // find user default address
+    const user = await User.findById(order.userId).populate("defaultAddress");
+    console.log("--------user-----", user);
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
     }
@@ -643,7 +652,15 @@ export const getOrderInvoice = async (req, res, next) => {
 
     pdf.pipe(res);
 
-    addHeader(pdf, fontPathText, order._id, order.createdAt, order, admin);
+    addHeader(
+      pdf,
+      fontPathText,
+      order._id,
+      order.createdAt,
+      order,
+      admin,
+      user,
+    );
 
     pdf
       .font(fontPathTitle)
@@ -754,33 +771,42 @@ export const getOrderInvoice = async (req, res, next) => {
   }
 };
 
-const addHeader = (doc, fontPath, invoiceId, invoiceDate, order, admin) => {
+const addHeader = (
+  doc,
+  fontPath,
+  invoiceId,
+  invoiceDate,
+  order,
+  admin,
+  user,
+) => {
   doc.font(fontPath);
   // Company name / logo area
   doc
     .fontSize(10)
-    .text(`${order?.shippingAddress?.companyName || ""}`, { align: "left" });
+    .text(`${user?.defaultAddress?.companyName || ""}`, { align: "left" });
 
   doc.moveDown(0.2);
 
   doc
     .fontSize(10)
     .text(
-      `${order?.shippingAddress?.firstName || ""} ${order?.shippingAddress?.lastName || ""}`,
+      `${user?.defaultAddress?.firstName || ""} ${user?.defaultAddress?.lastName || ""}`,
       { align: "left" },
     );
 
   doc.moveDown(0.2);
   doc
     .fontSize(10)
-    .text(`${order?.shippingAddress?.streetAddress || ""}`, { align: "left" })
+    .text(`${user?.defaultAddress?.streetAddress || ""}`, { align: "left" })
     .text(
-      `${order?.shippingAddress?.zipCode + " " || ""} ${order?.shippingAddress?.city || ""}`,
+      `${user?.defaultAddress?.zipCode + " " || ""} ${user?.defaultAddress?.city || ""}`,
       { align: "left" },
     )
-    .text(`${order?.shippingAddress?.country || ""}`, { align: "left" });
-
-  doc.moveUp(4); // move cursor up to same line height as title
+    .text(`${user?.defaultAddress?.country || ""}`, { align: "left" });
+  doc.moveDown(0.2);
+  doc.fontSize(10).text(`${user?.email || ""}`, { align: "left" });
+  doc.moveUp(6); // move cursor up to same line height as title
   // doc.fontSize(32).text("Order", {
   //   align: "right",
   // });
@@ -1084,7 +1110,9 @@ const findActiveCartForUser = async (userId, withPopulate = false) => {
 //********** POST /users/cart/create-checkout-session **********
 
 export const createCheckoutSession = async (req, res) => {
-  const { cartList, shippingCosts } = req.body;
+  const { cartList, shippingAddress } = req.body;
+
+  console.log("shippingAddress", shippingAddress);
   console.log("cartList", cartList);
   const userId = req.user._id;
 
@@ -1109,7 +1137,7 @@ export const createCheckoutSession = async (req, res) => {
         currency: "eur",
         product_data: {
           name: item.productId.title,
-          images: [item.productId.image],
+          images: [item.productId.image], //!stripe api accepts an array of image urls for the product image
           description: item.productId.description,
         },
         unit_amount: Math.round(item.productId.price * 100), // convert to cents
@@ -1117,6 +1145,16 @@ export const createCheckoutSession = async (req, res) => {
       quantity: item.quantity,
     };
   });
+
+  // calculate shipping cost in the backend to prevent malicious user from manipulating the shipping cost in the request body to get a lower shipping cost (never trust the client, always validate and recalculate important data in the backend)
+  const cartItems = cartData.products.map((item) => {
+    return {
+      weight: item.productId.weight ?? item.weight,
+      quantity: item.quantity,
+    };
+  });
+
+  const shippingCosts = calculateShippingCost(cartItems, shippingAddress);
 
   // Add shipping costs as a separate line item
   if (shippingCosts && shippingCosts > 0) {
@@ -1147,7 +1185,7 @@ export const createCheckoutSession = async (req, res) => {
 
     // Billing Address Collection for Klarna often required
     // billing_address_collection: "required",
-    success_url: `${process.env.FRONTEND_BASE_URL}/cart?success=true&session_id={CHECKOUT_SESSION_ID}`, // Redirect to cart page after payment (CHECKOUT_SESSION_ID is a placeholder that Stripe replaces with the actual session ID)
+    success_url: `${process.env.FRONTEND_BASE_URL}/cart?success=true&session_id={CHECKOUT_SESSION_ID}}&addressId=${shippingAddress?._id || ""}`, // Redirect to cart page after payment (CHECKOUT_SESSION_ID is a placeholder that Stripe replaces with the actual session ID)
     cancel_url: `${process.env.FRONTEND_BASE_URL}/cart?canceled=true`, // Redirect to cart page after payment
   });
 
