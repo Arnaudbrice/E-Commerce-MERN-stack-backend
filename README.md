@@ -13,7 +13,7 @@ This is the backend API for the **Bon Marché** E-Commerce platform. It's a robu
 
 ### **🌐 Live**
 
-> **Live:** [https://e-commerce-mern-stack-frontend-q5j0.onrender.com/](https://e-commerce-mern-stack-frontend-q5j0.onrender.com)
+> **Live:** [https://e-commerce-mern-stack-frontend-q5j0.onrender.com/](https://bonmarche.dev-with-arnaud.work/)
 
 ---
 
@@ -158,6 +158,16 @@ A brief overview of the main API routes. All routes are prefixed with `/`.
 | `GET`        | `/users/orders/:id/invoice`           | Download a PDF invoice for an order. | User   |
 | **Chat**     |                                       |                                      |        |
 | `POST`       | `/chat/message`                       | Send a message to the AI assistant.  | Public |
+
+---
+
+## 👨‍💻 Author
+
+**Brice Arnaud Habenicht**
+
+- 🌐 [Portfolio](https://dev-with-arnaud.work/)
+- 💼 [LinkedIn](https://www.linkedin.com/in/brice-arnaud-habenicht/)
+- 🐙 [GitHub](https://github.com/Arnaudbrice)
 
 ---
 
