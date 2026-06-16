@@ -113,6 +113,9 @@ GMAIL_APP_PASSWORD=your_google_app_password
 
 # AI Assistant (Groq)
 GROQ_API_KEY=gsk_your_groq_api_key
+
+# RESEND API KEY
+RESEND_API_KEY=resend_api_key
 ```
 
 ---
